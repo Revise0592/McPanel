@@ -3,6 +3,7 @@ package backup
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -170,6 +171,7 @@ func Create(dataDir string, inst *mc.Instance, label string) (Backup, error) {
 	if err := os.MkdirAll(Dir(dataDir, def.ID), 0o755); err != nil {
 		return Backup{}, err
 	}
+	SaveInfo(dataDir, def)
 	now := time.Now()
 	name := now.Format(timeFormat)
 	if label != "" {
@@ -247,6 +249,87 @@ func Delete(dataDir, id, name string) error {
 		return err
 	}
 	return os.Remove(p)
+}
+
+// infoFile records which server a backup folder belongs to, so its backups
+// can still be named after the server is deleted.
+const infoFile = "server.json"
+
+type info struct {
+	Name    string `json:"name"`
+	Type    string `json:"type"`
+	Version string `json:"version"`
+}
+
+// SaveInfo writes the server's name and type into its backup folder, if
+// the folder exists. Failure only costs a nicer name later, so it's ignored.
+func SaveInfo(dataDir string, sv store.Server) {
+	dir := Dir(dataDir, sv.ID)
+	if _, err := os.Stat(dir); err != nil {
+		return
+	}
+	b, _ := json.Marshal(info{Name: sv.Name, Type: sv.Type, Version: sv.Version})
+	os.WriteFile(filepath.Join(dir, infoFile), b, 0o644)
+}
+
+// Orphan is the backup folder of a server that no longer exists.
+type Orphan struct {
+	ID      string
+	Name    string
+	Type    string // empty when unknown
+	Version string
+	Backups []Backup
+	Size    int64
+}
+
+var idRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
+
+// trailing random part of a server ID, e.g. "-a1b2c3"
+var idSuffix = regexp.MustCompile(`-[0-9a-f]{6}$`)
+
+// Orphans lists backup folders whose server isn't in known, largest first.
+// Folders without any backups are skipped.
+func Orphans(dataDir string, known func(id string) bool) ([]Orphan, error) {
+	ents, err := os.ReadDir(filepath.Join(dataDir, "backups"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var out []Orphan
+	for _, e := range ents {
+		id := e.Name()
+		if !e.IsDir() || !idRe.MatchString(id) || known(id) {
+			continue
+		}
+		list, err := List(dataDir, id)
+		if err != nil || len(list) == 0 {
+			continue
+		}
+		o := Orphan{ID: id, Backups: list}
+		for _, b := range list {
+			o.Size += b.Size
+		}
+		var in info
+		if b, err := os.ReadFile(filepath.Join(Dir(dataDir, id), infoFile)); err == nil && json.Unmarshal(b, &in) == nil && in.Name != "" {
+			o.Name, o.Type, o.Version = in.Name, in.Type, in.Version
+		} else {
+			// Older folders have no info file; the ID starts with the name.
+			o.Name = strings.ReplaceAll(idSuffix.ReplaceAllString(id, ""), "-", " ")
+		}
+		out = append(out, o)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Size > out[j].Size })
+	return out, nil
+}
+
+// DeleteFolder removes a server's whole backup folder.
+func DeleteFolder(dataDir, id string) error {
+	if !idRe.MatchString(id) {
+		return errors.New("invalid server ID")
+	}
+	return os.RemoveAll(Dir(dataDir, id))
 }
 
 // prune deletes the oldest automatic backups beyond keep.

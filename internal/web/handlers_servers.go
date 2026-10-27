@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,12 +25,16 @@ type serverView struct {
 	Port      int
 	AddonNoun string
 	Tab       string
+	IconTime  int64 // server icon's change time; 0 when there is none
 }
 
 func (a *App) view(r *http.Request, sv store.Server) serverView {
 	v := serverView{Server: sv, Port: a.Mgr.Port(sv)}
 	if inst, err := a.Mgr.Get(sv.ID); err == nil {
 		v.Status = inst.Status()
+		if fi, err := os.Stat(iconFile(inst)); err == nil {
+			v.IconTime = fi.ModTime().Unix()
+		}
 	}
 	if v.Port > 0 {
 		v.Address = fmt.Sprintf("%s:%d", hostOnly(r), v.Port)
@@ -65,7 +70,11 @@ func (a *App) allViews(r *http.Request) []serverView {
 }
 
 func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, "dashboard", "Servers", "servers", a.allViews(r))
+	d := struct {
+		Servers []serverView
+		Orphans orphanSummary
+	}{a.allViews(r), a.orphanSummary()}
+	a.render(w, r, "dashboard", "Servers", "servers", d)
 }
 
 func (a *App) serverCards(w http.ResponseWriter, r *http.Request) {

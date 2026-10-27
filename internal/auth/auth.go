@@ -72,7 +72,7 @@ func CheckPassword(encoded, pw string) bool {
 type Sessions struct {
 	Secret      func() string
 	Fingerprint func() string
-	Secure      bool
+	Secure      func() bool // nil means never Secure
 }
 
 // PendingCookie marks a browser that has passed the password step and
@@ -96,7 +96,7 @@ func (s *Sessions) set(w http.ResponseWriter, name, kind string, d time.Duration
 		Path:     "/",
 		Expires:  time.Unix(exp, 0),
 		HttpOnly: true,
-		Secure:   s.Secure,
+		Secure:   s.Secure != nil && s.Secure(),
 		SameSite: http.SameSiteLaxMode,
 	})
 }

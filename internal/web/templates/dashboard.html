@@ -6,9 +6,9 @@
     <a class="btn primary" href="/servers/new">New server</a>
   </div>
 </div>
-{{if .Data}}
+{{if .Data.Servers}}
 <div class="grid" hx-get="/partials/servers" hx-trigger="every 5s" hx-swap="innerHTML">
-  {{template "server-cards" .Data}}
+  {{template "server-cards" .Data.Servers}}
 </div>
 {{else}}
 <div class="card empty">
@@ -20,4 +20,10 @@
   </div>
 </div>
 {{end}}
+{{with .Data.Orphans}}{{if .Servers}}
+<div class="notice">
+  <span>Backups from {{.Servers}} deleted server{{if gt .Servers 1}}s{{end}} are still using {{size .Size}}.</span>
+  <a class="btn small" href="/backups/deleted">Review</a>
+</div>
+{{end}}{{end}}
 {{end}}

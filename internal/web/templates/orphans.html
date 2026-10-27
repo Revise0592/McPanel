@@ -1,0 +1,48 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Backups from deleted servers</h1>
+    <p class="muted" style="margin:.25rem 0 0">These servers are gone, but their backups were kept. Download any you want to keep, then delete the rest to free space.</p>
+  </div>
+  <a class="btn ghost" href="/">Back to servers</a>
+</div>
+<div class="stack">
+{{range .Data}}
+  {{$id := .ID}}
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <h2>{{.Name}}</h2>
+        <div class="muted small">{{if .Type}}{{typeLabel .Type}} {{.Version}} · {{end}}{{len .Backups}} backup{{if gt (len .Backups) 1}}s{{end}} · {{size .Size}}</div>
+      </div>
+      <form method="post" action="/backups/deleted/{{.ID}}/delete" data-confirm="Delete all {{len .Backups}} backups of {{.Name}}? This can't be undone.">
+        <button class="btn danger">Delete all</button></form>
+    </div>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Made</th><th>Kind</th><th>Size</th><th></th></tr></thead>
+      <tbody>
+      {{range .Backups}}
+        <tr>
+          <td>{{date .Created}}<div class="muted small">{{ago .Created}}</div></td>
+          <td>{{template "backup-kind" .}}</td>
+          <td>{{size .Size}}</td>
+          <td class="actions">
+            <a class="btn small ghost" href="/backups/deleted/{{$id}}/{{pathEsc .Name}}">Download</a>
+            <form class="inline" method="post" action="/backups/deleted/{{$id}}/{{pathEsc .Name}}/delete" data-confirm="Delete this backup for good?">
+              <button class="btn small ghost danger">Delete</button></form>
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </div>
+{{else}}
+  <div class="card empty">
+    <h2>Nothing left over</h2>
+    <p>Every backup belongs to a server you still have.</p>
+  </div>
+{{end}}
+</div>
+{{end}}

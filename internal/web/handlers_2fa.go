@@ -89,7 +89,7 @@ type twoFactorSetup struct {
 func (a *App) twoFactorSetupPage(w http.ResponseWriter, r *http.Request) {
 	set := a.Store.Settings()
 	if set.TwoFactor() {
-		back(w, r, "/settings")
+		back(w, r, securityURL)
 		return
 	}
 	secret := set.TOTPPending
@@ -115,7 +115,7 @@ func (a *App) twoFactorSetupPage(w http.ResponseWriter, r *http.Request) {
 func (a *App) twoFactorSetupSubmit(w http.ResponseWriter, r *http.Request) {
 	set := a.Store.Settings()
 	if set.TwoFactor() || set.TOTPPending == "" {
-		back(w, r, "/settings")
+		back(w, r, securityURL)
 		return
 	}
 	step, ok := auth.CheckTOTP(set.TOTPPending, r.FormValue("code"), time.Now(), 0)
@@ -142,34 +142,34 @@ type recoveryData struct {
 func (a *App) twoFactorDisable(w http.ResponseWriter, r *http.Request) {
 	set := a.Store.Settings()
 	if !set.TwoFactor() {
-		back(w, r, "/settings")
+		back(w, r, securityURL)
 		return
 	}
 	if !auth.CheckPassword(set.PasswordHash, r.FormValue("password")) {
 		setError(w, "Your password is wrong.")
-		back(w, r, "/settings")
+		back(w, r, securityURL)
 		return
 	}
 	if ok, _ := a.checkSecondFactor(r.FormValue("code")); !ok {
 		setError(w, "That code isn't right.")
-		back(w, r, "/settings")
+		back(w, r, securityURL)
 		return
 	}
 	a.Store.UpdateSettings(func(s *store.Settings) { s.DisableTwoFactor() })
 	log.Printf("two-factor sign-in turned off from %s", clientIP(r))
 	a.sessions.Issue(w)
 	setFlash(w, "Two-factor sign-in is off. Other browsers have been signed out.")
-	back(w, r, "/settings")
+	back(w, r, securityURL)
 }
 
 func (a *App) twoFactorNewCodes(w http.ResponseWriter, r *http.Request) {
 	if !a.Store.Settings().TwoFactor() {
-		back(w, r, "/settings")
+		back(w, r, securityURL)
 		return
 	}
 	if ok, _ := a.checkSecondFactor(r.FormValue("code")); !ok {
 		setError(w, "That code isn't right.")
-		back(w, r, "/settings")
+		back(w, r, securityURL)
 		return
 	}
 	codes, hashes := auth.NewRecoveryCodes(recoveryCodeCount)

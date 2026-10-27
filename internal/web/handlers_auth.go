@@ -97,7 +97,9 @@ func (a *App) loginPage(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/")
 		return
 	}
-	a.render(w, r, "login", "Sign in", "", nil)
+	// HTTPSOnly warns that sign-in will silently fail on this plain HTTP page.
+	httpsOnly := a.Store.Settings().BehindHTTPSProxy && !viaHTTPS(r)
+	a.render(w, r, "login", "Sign in", "", struct{ HTTPSOnly bool }{httpsOnly})
 }
 
 func (a *App) loginSubmit(w http.ResponseWriter, r *http.Request) {
@@ -137,8 +139,47 @@ func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
-func (a *App) panelSettingsPage(w http.ResponseWriter, r *http.Request) {
-	a.render(w, r, "panel_settings", "Panel settings", "settings", nil)
+// Panel settings are split into sections, each its own page.
+const (
+	appearanceURL = "/settings"
+	accountURL    = "/settings/account"
+	securityURL   = "/settings/security"
+)
+
+type panelSettingsData struct {
+	Section string
+	HTTPS   bool // this page was loaded over HTTPS
+	Accents []string
+}
+
+// accentPresets are offered as one-click swatches next to the colour picker.
+var accentPresets = []string{"#3b82f6", "#0d9488", "#16a34a", "#ca8a04", "#ea580c", "#dc2626", "#db2777", "#7c3aed", "#475569"}
+
+func (a *App) panelSettingsPage(section string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		d := panelSettingsData{Section: section, HTTPS: viaHTTPS(r), Accents: accentPresets}
+		a.render(w, r, "panel_settings", "Settings", "settings", d)
+	}
+}
+
+func (a *App) saveHTTPSProxy(w http.ResponseWriter, r *http.Request) {
+	on := r.FormValue("behindHTTPSProxy") == "on"
+	// Browsers drop Secure cookies sent over plain HTTP, so turning this on
+	// from an HTTP page would sign the user out for good.
+	if on && !viaHTTPS(r) {
+		setError(w, "Open McPanel through your HTTPS address first, then turn this on. Turning it on over plain HTTP would lock you out.")
+		back(w, r, securityURL)
+		return
+	}
+	a.Store.UpdateSettings(func(s *store.Settings) { s.BehindHTTPSProxy = on })
+	// Re-issue the session so this browser's cookie picks up the new flag.
+	a.sessions.Issue(w)
+	if on {
+		setFlash(w, "Saved. Sign-in now only works over HTTPS.")
+	} else {
+		setFlash(w, "Saved.")
+	}
+	back(w, r, securityURL)
 }
 
 func (a *App) savePanelSettings(w http.ResponseWriter, r *http.Request) {
@@ -168,30 +209,30 @@ func (a *App) savePanelSettings(w http.ResponseWriter, r *http.Request) {
 func (a *App) changeUsername(w http.ResponseWriter, r *http.Request) {
 	if !auth.CheckPassword(a.Store.Settings().PasswordHash, r.FormValue("current")) {
 		setError(w, "Your current password is wrong.")
-		back(w, r, "/settings")
+		back(w, r, accountURL)
 		return
 	}
 	user := strings.TrimSpace(r.FormValue("username"))
 	if msg := checkUsername(user); msg != "" {
 		setError(w, msg)
-		back(w, r, "/settings")
+		back(w, r, accountURL)
 		return
 	}
 	a.Store.UpdateSettings(func(s *store.Settings) { s.Username = user })
 	setFlash(w, "Username changed. Use it the next time you sign in.")
-	back(w, r, "/settings")
+	back(w, r, accountURL)
 }
 
 func (a *App) changePassword(w http.ResponseWriter, r *http.Request) {
 	if !auth.CheckPassword(a.Store.Settings().PasswordHash, r.FormValue("current")) {
 		setError(w, "Your current password is wrong.")
-		back(w, r, "/settings")
+		back(w, r, accountURL)
 		return
 	}
 	pw, pw2 := r.FormValue("password"), r.FormValue("confirm")
 	if msg := checkNewPassword(pw, pw2); msg != "" {
 		setError(w, msg)
-		back(w, r, "/settings")
+		back(w, r, accountURL)
 		return
 	}
 	hash := auth.HashPassword(pw)
@@ -199,5 +240,5 @@ func (a *App) changePassword(w http.ResponseWriter, r *http.Request) {
 	// The old cookie is now invalid; issue a fresh one for this browser.
 	a.sessions.Issue(w)
 	setFlash(w, "Password changed. Other browsers have been signed out.")
-	back(w, r, "/settings")
+	back(w, r, accountURL)
 }

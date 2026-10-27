@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} · {{.Panel.PanelName}}</title>
 <link rel="stylesheet" href="{{asset "style.css"}}">
-{{if hasIcon}}<link rel="icon" href="{{asset "brand/favicon.ico"}}">{{end}}
-<style>:root { --accent: {{.Panel.Accent}}; }</style>
+{{with logo}}<link rel="icon" href="{{.}}">{{else}}{{if hasIcon}}<link rel="icon" href="{{asset "brand/favicon.ico"}}">{{end}}{{end}}
+<style>:root { --accent: {{.Panel.Accent}}; --accent-text: {{accentText .Panel.Accent}}; }</style>
 <script src="{{asset "htmx.min.js"}}" defer></script>
 <script src="{{asset "app.js"}}" defer></script>
 </head>
@@ -14,10 +14,11 @@
 {{if .Nav}}
 <header class="topbar">
   <div class="wrap">
-    <a class="brand" href="/">{{template "brand-mark"}}{{.Panel.PanelName}}</a>
+    <a class="brand" href="/">{{template "brand-mark"}}<span class="brand-name">{{.Panel.PanelName}}</span></a>
     <nav class="nav">
       <a href="/" {{if eq .Nav "servers"}}class="active"{{end}}>Servers</a>
       <a href="/settings" {{if eq .Nav "settings"}}class="active"{{end}}>Settings</a>
+      <span class="nav-sep" aria-hidden="true"></span>
       <form class="inline" method="post" action="/logout"><button type="submit">Sign out</button></form>
     </nav>
   </div>

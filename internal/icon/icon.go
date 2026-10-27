@@ -23,7 +23,10 @@ const maxSide = 8192
 
 // Make reads a PNG, JPEG or GIF, crops it to a centred square and scales it
 // to Size×Size. It returns the result as PNG bytes.
-func Make(r io.Reader) ([]byte, error) {
+func Make(r io.Reader) ([]byte, error) { return MakeSize(r, Size) }
+
+// MakeSize is Make with a chosen output size.
+func MakeSize(r io.Reader, n int) ([]byte, error) {
 	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -40,7 +43,7 @@ func Make(r io.Reader) ([]byte, error) {
 		return nil, errors.New("the picture couldn't be read")
 	}
 	var out bytes.Buffer
-	if err := png.Encode(&out, scale(src, square(src), Size)); err != nil {
+	if err := png.Encode(&out, scale(src, square(src), n)); err != nil {
 		return nil, err
 	}
 	return out.Bytes(), nil

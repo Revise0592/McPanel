@@ -115,14 +115,57 @@
     });
   }
 
-  // Copy buttons.
+  // Accent colour: swatches fill the picker, and the page previews it live.
+  var accent = document.getElementById("accent");
+  if (accent) {
+    var shown = document.querySelector("[data-accent-value]");
+    var swatches = document.querySelectorAll("[data-accent]");
+    var preview = function () {
+      var v = accent.value.toLowerCase();
+      var n = parseInt(v.slice(1), 16);
+      // Same brightness rule as accentText in brand.go.
+      var light = Math.floor(((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 1000) > 128;
+      var root = document.documentElement.style;
+      root.setProperty("--accent", v);
+      root.setProperty("--accent-text", light ? "#16191d" : "#fff");
+      if (shown) shown.textContent = v;
+      swatches.forEach(function (s) { s.setAttribute("aria-pressed", s.getAttribute("data-accent") === v); });
+    };
+    swatches.forEach(function (s) {
+      s.addEventListener("click", function () { accent.value = s.getAttribute("data-accent"); preview(); });
+    });
+    accent.addEventListener("input", preview);
+    preview();
+  }
+
+  // Copy buttons. navigator.clipboard only exists on HTTPS or localhost, so
+  // fall back to a hidden textarea + execCommand when the panel is on plain HTTP.
+  function copyFallback(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (err) {}
+    document.body.removeChild(ta);
+    return ok ? Promise.resolve() : Promise.reject();
+  }
   document.addEventListener("click", function (e) {
     var b = e.target.closest("[data-copy]");
     if (!b) return;
-    navigator.clipboard && navigator.clipboard.writeText(b.getAttribute("data-copy")).then(function () {
+    var text = b.getAttribute("data-copy");
+    var p = navigator.clipboard && window.isSecureContext
+      ? navigator.clipboard.writeText(text).catch(function () { return copyFallback(text); })
+      : copyFallback(text);
+    p.then(function () {
       var old = b.textContent;
       b.textContent = "Copied";
       setTimeout(function () { b.textContent = old; }, 1200);
+    }, function () {
+      toast("Couldn't copy. Select the text and copy it by hand.");
     });
   });
 })();

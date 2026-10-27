@@ -1,4 +1,4 @@
-{{define "brand-mark"}}{{if hasIcon}}<img class="brand-icon" src="{{asset "brand/favicon.ico"}}" alt="">{{else}}<span class="brand-mark"></span>{{end}}{{end}}
+{{define "brand-mark"}}{{with logo}}<img class="brand-icon" src="{{.}}" alt="">{{else}}{{if hasIcon}}<img class="brand-icon" src="{{asset "brand/favicon.ico"}}" alt="">{{else}}<span class="brand-mark"></span>{{end}}{{end}}{{end}}
 
 {{define "badge"}}{{/* takes serverView */}}
 {{- $s := .Status -}}
@@ -21,6 +21,13 @@
 {{- end -}}
 {{- end}}
 
+{{define "server-avatar"}}{{/* takes serverView: the server icon, or the type's initial */}}
+{{- if .IconTime}}<img class="avatar" src="/servers/{{.ID}}/icon?v={{.IconTime}}" alt="">
+{{- else}}<span class="avatar {{.Type}}" aria-hidden="true">{{slice (typeLabel .Type) 0 1}}</span>{{end -}}
+{{end}}
+
+{{define "backup-kind"}}<span class="tag">{{if eq .Label "auto"}}Scheduled{{else if eq .Label "manual"}}Manual{{else if eq .Label "before-restore"}}Before restore{{else if eq .Label "before-update"}}Before update{{else}}{{.Label}}{{end}}</span>{{end}}
+
 {{define "server-cards"}}
 {{range .}}{{template "server-card" .}}{{end}}
 {{end}}
@@ -28,6 +35,7 @@
 {{define "server-card"}}
 <div class="card server-card" hx-target="this" hx-swap="outerHTML" hx-vals='{"card":"1"}'>
   <div class="title">
+    {{template "server-avatar" .}}
     <a href="/servers/{{.ID}}">{{.Name}}</a>
     {{template "badge" .}}
   </div>
@@ -46,6 +54,7 @@
 
 {{define "server-header"}}
 <div class="server-header" hx-get="/servers/{{.ID}}/status" hx-trigger="every 3s" hx-swap="outerHTML" hx-target="this">
+  {{template "server-avatar" .}}
   <div>
     <h1>{{.Name}}</h1>
     <div class="meta">

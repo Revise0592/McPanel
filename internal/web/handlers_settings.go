@@ -76,12 +76,22 @@ func propsPath(inst *mc.Instance) string { return filepath.Join(inst.Dir(), "ser
 
 type settingsData struct {
 	serverView
+	Section  string // general, game, version or advanced
 	Fields   []field
 	Raw      string
 	Versions []string
 	Memory   []int
-	HasIcon  bool
-	IconTime int64 // changes the preview URL so browsers show a new upload
+}
+
+var settingsSections = []string{"general", "game", "version", "advanced"}
+
+// settingsURL is the address of one section of a server's settings.
+func settingsURL(id, section string) string {
+	u := "/servers/" + id + "/settings"
+	if section != "general" {
+		u += "?s=" + section
+	}
+	return u
 }
 
 func (a *App) settingsPage(w http.ResponseWriter, r *http.Request) {
@@ -89,26 +99,32 @@ func (a *App) settingsPage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	f, err := props.Load(propsPath(inst))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	d := settingsData{serverView: a.view(r, sv), Section: r.URL.Query().Get("s")}
+	if !slices.Contains(settingsSections, d.Section) {
+		d.Section = "general"
 	}
-	fields := slices.Clone(fieldsFor(sv.Type))
-	for i := range fields {
-		fields[i].Value = f.GetOr(fields[i].Key, fields[i].Default)
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
-	vs, _ := install.Versions(ctx, sv.Type)
-	d := settingsData{serverView: a.view(r, sv), Fields: fields, Raw: f.Raw(), Versions: vs,
-		Memory: []int{1024, 2048, 3072, 4096, 6144, 8192, 12288, 16384}}
-	if !slices.Contains(d.Memory, sv.MemoryMB) && sv.MemoryMB > 0 {
-		d.Memory = append(d.Memory, sv.MemoryMB)
-		slices.Sort(d.Memory)
-	}
-	if fi, err := os.Stat(iconFile(inst)); err == nil {
-		d.HasIcon, d.IconTime = true, fi.ModTime().Unix()
+	switch d.Section {
+	case "general":
+		d.Memory = []int{1024, 2048, 3072, 4096, 6144, 8192, 12288, 16384}
+		if !slices.Contains(d.Memory, sv.MemoryMB) && sv.MemoryMB > 0 {
+			d.Memory = append(d.Memory, sv.MemoryMB)
+			slices.Sort(d.Memory)
+		}
+	case "game", "advanced":
+		f, err := props.Load(propsPath(inst))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		d.Fields = slices.Clone(fieldsFor(sv.Type))
+		for i := range d.Fields {
+			d.Fields[i].Value = f.GetOr(d.Fields[i].Key, d.Fields[i].Default)
+		}
+		d.Raw = f.Raw()
+	case "version":
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		d.Versions, _ = install.Versions(ctx, sv.Type)
 	}
 	d.Tab = "settings"
 	a.render(w, r, "settings", sv.Name+" settings", "servers", d)
@@ -126,7 +142,7 @@ func (a *App) saveGameSettings(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	to := "/servers/" + sv.ID + "/settings"
+	to := settingsURL(sv.ID, "game")
 	f, err := props.Load(propsPath(inst))
 	if err != nil {
 		setError(w, err.Error())
@@ -188,7 +204,7 @@ func (a *App) saveServerSettings(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	to := "/servers/" + sv.ID + "/settings"
+	to := settingsURL(sv.ID, "general")
 	name := strings.TrimSpace(r.FormValue("name"))
 	if name == "" || len(name) > 40 {
 		setError(w, "The name must be 1 to 40 characters.")
@@ -231,7 +247,7 @@ func (a *App) saveRawProperties(w http.ResponseWriter, r *http.Request) {
 	} else {
 		setFlash(w, "server.properties saved."+restartHint(inst))
 	}
-	back(w, r, "/servers/"+sv.ID+"/settings")
+	back(w, r, settingsURL(sv.ID, "advanced"))
 }
 
 func (a *App) changeVersion(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +281,7 @@ func (a *App) serverIcon(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	w.Header().Set("Cache-Control", "no-cache")
+	setImageCache(w, r)
 	http.ServeFile(w, r, iconFile(inst))
 }
 
@@ -274,7 +290,7 @@ func (a *App) uploadServerIcon(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	to := "/servers/" + sv.ID + "/settings"
+	to := settingsURL(sv.ID, "general")
 	if !store.IsJava(sv.Type) {
 		http.NotFound(w, r)
 		return
@@ -309,7 +325,7 @@ func (a *App) removeServerIcon(w http.ResponseWriter, r *http.Request) {
 	} else {
 		setFlash(w, "Server icon removed."+restartHint(inst))
 	}
-	back(w, r, "/servers/"+sv.ID+"/settings")
+	back(w, r, settingsURL(sv.ID, "general"))
 }
 
 const maxBedrockZip = 512 << 20
@@ -319,7 +335,7 @@ func (a *App) uploadBedrockZip(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	to := "/servers/" + sv.ID + "/settings"
+	to := settingsURL(sv.ID, "version")
 	if sv.Type != store.TypeBedrock {
 		http.NotFound(w, r)
 		return
@@ -369,14 +385,15 @@ func (a *App) deleteServer(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(r.FormValue("confirm")) != sv.Name {
 		setError(w, "Type the server's name exactly to delete it.")
-		back(w, r, "/servers/"+sv.ID+"/settings")
+		back(w, r, settingsURL(sv.ID, "advanced"))
 		return
 	}
+	backup.SaveInfo(a.Mgr.DataDir(), sv) // keeps the name for its leftover backups
 	if err := a.Mgr.Remove(sv.ID); err != nil {
 		setError(w, "Couldn't delete: "+err.Error())
-		back(w, r, "/servers/"+sv.ID+"/settings")
+		back(w, r, settingsURL(sv.ID, "advanced"))
 		return
 	}
-	setFlash(w, sv.Name+" was deleted. Its backups are kept in the data folder.")
+	setFlash(w, sv.Name+" was deleted. Its backups are kept under Backups from deleted servers.")
 	back(w, r, "/")
 }

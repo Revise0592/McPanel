@@ -63,7 +63,7 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 			}
 			return s.PasswordHash + "|" + s.TOTPSecret
 		},
-		Secure: secureCookies,
+		Secure: func() bool { return secureCookies || st.Settings().BehindHTTPSProxy },
 	}
 	assetVersion := hashStatic()
 	_, iconErr := fs.Stat(staticFS, "static/"+iconPath)
@@ -83,8 +83,10 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 			}
 			return strings.ToUpper(s[:1]) + s[1:]
 		},
-		"pathEsc": url.PathEscape,
-		"hasIcon": func() bool { return hasIcon },
+		"pathEsc":    url.PathEscape,
+		"hasIcon":    func() bool { return hasIcon },
+		"logo":       a.logoURL,
+		"accentText": accentText,
 		"gb": func(mb int) string {
 			if mb%1024 == 0 {
 				return fmt.Sprintf("%d GB", mb/1024)
@@ -118,9 +120,8 @@ func (a *App) Handler() http.Handler {
 	static, _ := fs.Sub(staticFS, "static")
 	mux.Handle("GET /static/", http.StripPrefix("/static/", cacheFor(http.FileServerFS(static), 365*24*time.Hour)))
 	// Browsers ask for /favicon.ico on their own, before reading the page.
-	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFileFS(w, r, static, iconPath)
-	})
+	mux.HandleFunc("GET /favicon.ico", a.serveFavicon(static))
+	mux.HandleFunc("GET /brand/logo.png", a.serveLogo)
 
 	mux.HandleFunc("GET /setup", a.setupPage)
 	mux.HandleFunc("POST /setup", a.setupSubmit)
@@ -170,6 +171,11 @@ func (a *App) Handler() http.Handler {
 	p("POST /servers/{id}/backups/{name}/restore", a.restoreBackup)
 	p("POST /servers/{id}/backups/{name}/delete", a.deleteBackup)
 
+	p("GET /backups/deleted", a.orphansPage)
+	p("GET /backups/deleted/{id}/{name}", a.downloadOrphan)
+	p("POST /backups/deleted/{id}/delete", a.deleteOrphanFolder)
+	p("POST /backups/deleted/{id}/{name}/delete", a.deleteOrphan)
+
 	p("GET /servers/{id}/files", a.filesPage)
 	p("GET /servers/{id}/files/download", a.downloadFile)
 	p("POST /servers/{id}/files/upload", a.uploadFiles)
@@ -182,8 +188,13 @@ func (a *App) Handler() http.Handler {
 	p("POST /servers/{id}/addons/toggle", a.addonsToggle)
 	p("POST /servers/{id}/addons/remove", a.addonsRemove)
 
-	p("GET /settings", a.panelSettingsPage)
+	p("GET /settings", a.panelSettingsPage("appearance"))
+	p("GET /settings/account", a.panelSettingsPage("account"))
+	p("GET /settings/security", a.panelSettingsPage("security"))
 	p("POST /settings", a.savePanelSettings)
+	p("POST /settings/logo", a.uploadLogo)
+	p("POST /settings/logo/remove", a.removeLogo)
+	p("POST /settings/https-proxy", a.saveHTTPSProxy)
 	p("POST /settings/username", a.changeUsername)
 	p("POST /settings/password", a.changePassword)
 	p("GET /settings/2fa", a.twoFactorSetupPage)
@@ -328,6 +339,13 @@ func (a *App) partial(w http.ResponseWriter, name string, data any) {
 
 func back(w http.ResponseWriter, r *http.Request, to string) {
 	http.Redirect(w, r, to, http.StatusSeeOther)
+}
+
+// viaHTTPS reports whether the browser reached McPanel over HTTPS, either
+// directly or through a proxy that says so. The header can be faked, so
+// only use this for warnings, never for access decisions.
+func viaHTTPS(r *http.Request) bool {
+	return r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
 }
 
 func clientIP(r *http.Request) string {

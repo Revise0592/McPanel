@@ -149,6 +149,8 @@ func resetPassword(args []string) {
 	err = st.UpdateSettings(func(s *store.Settings) {
 		s.PasswordHash = auth.HashPassword(pw)
 		s.DisableTwoFactor()
+		// Lets someone locked out by the HTTPS proxy setting back in over HTTP.
+		s.BehindHTTPSProxy = false
 		if s.Username == "" {
 			s.Username = store.DefaultUsername
 		}
@@ -160,6 +162,7 @@ func resetPassword(args []string) {
 	if twoFactor {
 		fmt.Println("Two-factor sign-in has been turned off; turn it back on in Settings.")
 	}
+	fmt.Println("\"Behind an HTTPS proxy\" has been turned off; turn it back on in Settings if you use one.")
 }
 
 // stdin is shared so piped input with several lines isn't lost between reads.

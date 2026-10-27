@@ -2,127 +2,143 @@
 {{$v := .Data}}
 {{template "server-header" $v}}
 {{template "server-tabs" $v}}
-<div class="stack">
-  <form class="card" method="post" action="/servers/{{$v.ID}}/settings/game">
-    <h2>Game</h2>
-    <div class="fields">
-    {{range $v.Fields}}{{if ne .Kind "bool"}}
-      <div class="field">
-        <label for="f-{{.Key}}">{{.Label}}</label>
-        {{if eq .Kind "select"}}
-        <select id="f-{{.Key}}" name="{{.Key}}">
-          {{$cur := .Value}}{{range .Options}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{title .}}</option>{{end}}
-        </select>
-        {{else if eq .Kind "number"}}
-        <input type="number" id="f-{{.Key}}" name="{{.Key}}" value="{{.Value}}" min="0">
-        {{else}}
-        <input type="text" id="f-{{.Key}}" name="{{.Key}}" value="{{.Value}}">
-        {{end}}
-        {{if .Help}}<div class="help">{{.Help}}</div>{{end}}
-      </div>
-    {{end}}{{end}}
-    </div>
-    <div class="fields">
-    {{range $v.Fields}}{{if eq .Kind "bool"}}
-      <div class="field">
-        <label class="check"><input type="checkbox" name="{{.Key}}" {{if .Checked}}checked{{end}}>
-          <span><strong>{{.Label}}</strong>{{if .Help}}<span class="help" style="display:block">{{.Help}}</span>{{end}}</span></label>
-      </div>
-    {{end}}{{end}}
-    </div>
-    <div class="form-actions"><button class="btn primary">Save game settings</button></div>
-  </form>
+{{$base := printf "/servers/%s/settings" $v.ID}}
+<div class="settings-layout">
+  <nav class="subnav" aria-label="Settings sections">
+    <a href="{{$base}}" {{if eq $v.Section "general"}}class="active" aria-current="page"{{end}}>General</a>
+    <a href="{{$base}}?s=game" {{if eq $v.Section "game"}}class="active" aria-current="page"{{end}}>Game</a>
+    <a href="{{$base}}?s=version" {{if eq $v.Section "version"}}class="active" aria-current="page"{{end}}>Version</a>
+    <a href="{{$base}}?s=advanced" {{if eq $v.Section "advanced"}}class="active" aria-current="page"{{end}}>Advanced</a>
+  </nav>
 
-  <form class="card" method="post" action="/servers/{{$v.ID}}/settings/server">
-    <h2>Server</h2>
-    <div class="fields">
-      <div class="field">
-        <label for="name">Name in McPanel</label>
-        <input type="text" id="name" name="name" value="{{$v.Name}}" maxlength="40" required>
+  <div class="stack">
+  {{if eq $v.Section "general"}}
+    <form class="card" method="post" action="{{$base}}/server">
+      <h2>Server</h2>
+      <div class="fields">
+        <div class="field">
+          <label for="name">Name in McPanel</label>
+          <input type="text" id="name" name="name" value="{{$v.Name}}" maxlength="40" required>
+        </div>
+        {{if isJava $v.Type}}
+        <div class="field">
+          <label for="memory">Memory</label>
+          <select id="memory" name="memory">
+            {{range $v.Memory}}<option value="{{.}}" {{if eq . $v.MemoryMB}}selected{{end}}>{{gb .}}</option>{{end}}
+          </select>
+        </div>
+        {{end}}
       </div>
       {{if isJava $v.Type}}
       <div class="field">
-        <label for="memory">Memory</label>
-        <select id="memory" name="memory">
-          {{range $v.Memory}}<option value="{{.}}" {{if eq . $v.MemoryMB}}selected{{end}}>{{gb .}}</option>{{end}}
-        </select>
+        <label for="javaArgs">Extra Java options</label>
+        <input type="text" id="javaArgs" name="javaArgs" value="{{$v.JavaArgs}}" class="mono" placeholder="Optional, e.g. -XX:+UseG1GC">
+        <div class="help">Uses Java {{$v.JavaMajor}}, downloaded automatically.</div>
       </div>
       {{end}}
-    </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" name="autoStart" {{if $v.AutoStart}}checked{{end}}>
+          <span><strong>Start when McPanel starts</strong></span></label>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" name="restartOnCrash" {{if $v.RestartOnCrash}}checked{{end}}>
+          <span><strong>Restart if it crashes</strong><span class="help" style="display:block">Gives up after 3 crashes in 10 minutes.</span></span></label>
+      </div>
+      <div class="form-actions"><button class="btn primary">Save</button></div>
+    </form>
+
     {{if isJava $v.Type}}
-    <div class="field">
-      <label for="javaArgs">Extra Java options</label>
-      <input type="text" id="javaArgs" name="javaArgs" value="{{$v.JavaArgs}}" class="mono" placeholder="Optional, e.g. -XX:+UseG1GC">
-      <div class="help">Uses Java {{$v.JavaMajor}}, downloaded automatically.</div>
+    <div class="card">
+      <h2>Server icon</h2>
+      <p class="desc">Shown next to the server in the multiplayer list. Any PNG, JPEG or GIF works; it's cropped to a square and resized to 64×64.</p>
+      <div class="row">
+        {{if $v.IconTime}}<img class="server-icon" src="/servers/{{$v.ID}}/icon?v={{$v.IconTime}}" alt="Current server icon" width="64" height="64">
+        {{else}}<span class="server-icon none" aria-label="No icon set"></span>{{end}}
+        <form class="row" method="post" action="{{$base}}/icon" enctype="multipart/form-data">
+          <input type="file" name="icon" accept="image/png,image/jpeg,image/gif" required aria-label="Icon picture">
+          <button class="btn">Upload</button>
+        </form>
+        {{if $v.IconTime}}<form class="inline" method="post" action="{{$base}}/icon/remove" data-confirm="Remove the server icon?">
+          <button class="btn ghost danger">Remove</button></form>{{end}}
+      </div>
     </div>
     {{end}}
-    <div class="field">
-      <label class="check"><input type="checkbox" name="autoStart" {{if $v.AutoStart}}checked{{end}}>
-        <span><strong>Start when McPanel starts</strong></span></label>
-    </div>
-    <div class="field">
-      <label class="check"><input type="checkbox" name="restartOnCrash" {{if $v.RestartOnCrash}}checked{{end}}>
-        <span><strong>Restart if it crashes</strong><span class="help" style="display:block">Gives up after 3 crashes in 10 minutes.</span></span></label>
-    </div>
-    <div class="form-actions"><button class="btn primary">Save</button></div>
-  </form>
 
-  {{if isJava $v.Type}}
-  <div class="card">
-    <h2>Server icon</h2>
-    <p class="muted">Shown next to the server in the multiplayer list. Any PNG, JPEG or GIF works; it's cropped to a square and resized to 64×64.</p>
-    <div class="row">
-      {{if $v.HasIcon}}<img class="server-icon" src="/servers/{{$v.ID}}/icon?v={{$v.IconTime}}" alt="Current server icon" width="64" height="64">
-      {{else}}<span class="server-icon none" aria-label="No icon set"></span>{{end}}
-      <form class="row" method="post" action="/servers/{{$v.ID}}/settings/icon" enctype="multipart/form-data">
-        <input type="file" name="icon" accept="image/png,image/jpeg,image/gif" required aria-label="Icon picture">
-        <button class="btn">Upload</button>
-      </form>
-      {{if $v.HasIcon}}<form class="inline" method="post" action="/servers/{{$v.ID}}/settings/icon/remove" data-confirm="Remove the server icon?">
-        <button class="btn ghost danger">Remove</button></form>{{end}}
-    </div>
-  </div>
-  {{end}}
+  {{else if eq $v.Section "game"}}
+    <form class="card" method="post" action="{{$base}}/game">
+      <h2>Game</h2>
+      <p class="desc">Saved to server.properties.</p>
+      <div class="fields">
+      {{range $v.Fields}}{{if ne .Kind "bool"}}
+        <div class="field">
+          <label for="f-{{.Key}}">{{.Label}}</label>
+          {{if eq .Kind "select"}}
+          <select id="f-{{.Key}}" name="{{.Key}}">
+            {{$cur := .Value}}{{range .Options}}<option value="{{.}}" {{if eq . $cur}}selected{{end}}>{{title .}}</option>{{end}}
+          </select>
+          {{else if eq .Kind "number"}}
+          <input type="number" id="f-{{.Key}}" name="{{.Key}}" value="{{.Value}}" min="0">
+          {{else}}
+          <input type="text" id="f-{{.Key}}" name="{{.Key}}" value="{{.Value}}">
+          {{end}}
+          {{if .Help}}<div class="help">{{.Help}}</div>{{end}}
+        </div>
+      {{end}}{{end}}
+      </div>
+      <h3 class="subhead">Rules</h3>
+      <div class="fields">
+      {{range $v.Fields}}{{if eq .Kind "bool"}}
+        <div class="field">
+          <label class="check"><input type="checkbox" name="{{.Key}}" {{if .Checked}}checked{{end}}>
+            <span><strong>{{.Label}}</strong>{{if .Help}}<span class="help" style="display:block">{{.Help}}</span>{{end}}</span></label>
+        </div>
+      {{end}}{{end}}
+      </div>
+      <div class="form-actions"><button class="btn primary">Save game settings</button></div>
+    </form>
 
-  <form class="card" method="post" action="/servers/{{$v.ID}}/settings/version" data-confirm="Change version? The server will stop, be backed up, then update. Going back to an older version can break worlds.">
-    <h2>Version</h2>
-    <p class="muted">Currently {{typeLabel $v.Type}} {{$v.Version}}{{if $v.Build}} ({{if eq $v.Type "fabric"}}loader{{else}}build{{end}} {{$v.Build}}){{end}}. Worlds and settings are kept.</p>
-    <div class="row">
-      <select name="version" style="max-width:16rem" aria-label="Version">
-        {{range $v.Versions}}<option value="{{.}}" {{if eq . $v.Version}}selected{{end}}>{{if eq . "latest"}}Latest release{{else}}{{.}}{{end}}</option>{{end}}
-      </select>
-      <button class="btn">{{if eq $v.Type "bedrock"}}Update{{else}}Install{{end}}</button>
-    </div>
-    <p class="muted small" style="margin-top:.5rem">Picking the current version re-downloads it{{if eq $v.Type "paper"}} with the newest Paper build{{end}}{{if eq $v.Type "fabric"}} with the newest loader{{end}}.</p>
-  </form>
+  {{else if eq $v.Section "version"}}
+    <form class="card" method="post" action="{{$base}}/version" data-confirm="Change version? The server will stop, be backed up, then update. Going back to an older version can break worlds.">
+      <h2>Version</h2>
+      <p class="desc">Currently {{typeLabel $v.Type}} {{$v.Version}}{{if $v.Build}} ({{if eq $v.Type "fabric"}}loader{{else}}build{{end}} {{$v.Build}}){{end}}. Worlds and settings are kept.</p>
+      <div class="row">
+        <select name="version" style="max-width:16rem" aria-label="Version">
+          {{range $v.Versions}}<option value="{{.}}" {{if eq . $v.Version}}selected{{end}}>{{if eq . "latest"}}Latest release{{else}}{{.}}{{end}}</option>{{end}}
+        </select>
+        <button class="btn">{{if eq $v.Type "bedrock"}}Update{{else}}Install{{end}}</button>
+      </div>
+      <p class="muted small" style="margin-top:.75rem">Picking the current version re-downloads it{{if eq $v.Type "paper"}} with the newest Paper build{{end}}{{if eq $v.Type "fabric"}} with the newest loader{{end}}.</p>
+    </form>
 
-  {{if eq $v.Type "bedrock"}}
-  <form class="card" method="post" action="/servers/{{$v.ID}}/settings/bedrock-zip" enctype="multipart/form-data">
-    <h2>Install from a zip</h2>
-    <p class="muted">If the automatic download doesn't work, get the <strong>Ubuntu (Linux)</strong> server zip from
-      <a href="https://www.minecraft.net/download/server/bedrock" target="_blank" rel="noopener">minecraft.net</a> and upload it here. Worlds and settings are kept.</p>
-    <div class="row">
-      <input type="file" name="zip" accept=".zip" required aria-label="Bedrock server zip">
-      <button class="btn">Upload and install</button>
-    </div>
-  </form>
-  {{end}}
+    {{if eq $v.Type "bedrock"}}
+    <form class="card" method="post" action="{{$base}}/bedrock-zip" enctype="multipart/form-data">
+      <h2>Install from a zip</h2>
+      <p class="desc">If the automatic download doesn't work, get the <strong>Ubuntu (Linux)</strong> server zip from
+        <a href="https://www.minecraft.net/download/server/bedrock" target="_blank" rel="noopener">minecraft.net</a> and upload it here. Worlds and settings are kept.</p>
+      <div class="row">
+        <input type="file" name="zip" accept=".zip" required aria-label="Bedrock server zip">
+        <button class="btn">Upload and install</button>
+      </div>
+    </form>
+    {{end}}
 
-  <details class="card">
-    <summary><strong>Edit server.properties directly</strong></summary>
-    <form method="post" action="/servers/{{$v.ID}}/settings/raw" style="margin-top:1rem">
+  {{else}}
+    <form class="card" method="post" action="{{$base}}/raw">
+      <h2>server.properties</h2>
+      <p class="desc">Edit the file directly. Settings on the Game page are saved here too.</p>
       <textarea name="raw" spellcheck="false" aria-label="server.properties">{{$v.Raw}}</textarea>
       <div class="form-actions"><button class="btn">Save file</button></div>
     </form>
-  </details>
 
-  <form class="card danger-zone" method="post" action="/servers/{{$v.ID}}/delete" data-confirm="Delete {{$v.Name}} and its world? This can't be undone.">
-    <h2>Delete server</h2>
-    <p class="muted">Removes the server and its files. Backups are kept in the data folder. Type <strong>{{$v.Name}}</strong> to confirm.</p>
-    <div class="row">
-      <input type="text" name="confirm" style="max-width:16rem" aria-label="Server name" autocomplete="off">
-      <button class="btn danger solid">Delete</button>
-    </div>
-  </form>
+    <form class="card danger-zone" method="post" action="/servers/{{$v.ID}}/delete" data-confirm="Delete {{$v.Name}} and its world? This can't be undone.">
+      <h2>Delete server</h2>
+      <p class="desc">Removes the server and its files. Its backups are kept, and you can delete them from the Servers page later. Type <strong>{{$v.Name}}</strong> to confirm.</p>
+      <div class="row">
+        <input type="text" name="confirm" style="max-width:16rem" aria-label="Server name" autocomplete="off">
+        <button class="btn danger solid">Delete</button>
+      </div>
+    </form>
+  {{end}}
+  </div>
 </div>
 {{end}}

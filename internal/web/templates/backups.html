@@ -17,7 +17,7 @@
       {{range $v.Backups}}
         <tr>
           <td>{{date .Created}}<div class="muted small">{{ago .Created}}</div></td>
-          <td><span class="tag">{{if eq .Label "auto"}}Scheduled{{else if eq .Label "manual"}}Manual{{else if eq .Label "before-restore"}}Before restore{{else if eq .Label "before-update"}}Before update{{else}}{{.Label}}{{end}}</span></td>
+          <td>{{template "backup-kind" .}}</td>
           <td>{{size .Size}}</td>
           <td class="actions">
             <a class="btn small ghost" href="/servers/{{$v.ID}}/backups/{{pathEsc .Name}}">Download</a>

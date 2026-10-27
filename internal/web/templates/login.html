@@ -1,6 +1,7 @@
 {{define "content"}}
 <div class="auth">
   <div class="brand">{{template "brand-mark"}}{{.Panel.PanelName}}</div>
+  {{if .Data.HTTPSOnly}}<div class="flash error" role="status">McPanel is set to be behind an HTTPS proxy, so signing in only works over HTTPS. Open it through your HTTPS address instead.</div>{{end}}
   <form class="card" method="post" action="/login">
     <div class="field">
       <label for="username">Username</label>

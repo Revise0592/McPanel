@@ -81,6 +81,9 @@ type Settings struct {
 	TOTPPending    string   `json:"totpPending,omitempty"`
 	TOTPLastStep   int64    `json:"totpLastStep,omitempty"`
 	RecoveryHashes []string `json:"recoveryHashes,omitempty"`
+	// BehindHTTPSProxy marks sign-in cookies Secure for panels reached
+	// through an HTTPS reverse proxy that talks plain HTTP to McPanel.
+	BehindHTTPSProxy bool `json:"behindHTTPSProxy,omitempty"`
 }
 
 // TwoFactor reports whether two-factor sign-in is on.
