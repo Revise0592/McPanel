@@ -1,13 +1,18 @@
 # syntax=docker/dockerfile:1
 
 # --- build ---
-FROM docker.io/library/golang:1.26-trixie AS build
+# Runs on the build machine's own architecture and cross-compiles, which is
+# much faster than emulating ARM for multi-arch images.
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.26-trixie AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 ARG VERSION=dev
-RUN CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/mcpanel ./cmd/mcpanel
+ARG TARGETOS=linux
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/mcpanel ./cmd/mcpanel
 
 # --- runtime ---
 # Debian rather than Alpine: the Java runtimes McPanel downloads and the

@@ -58,12 +58,17 @@ To run as a service, see [`deploy/mcpanel.service`](deploy/mcpanel.service).
 
 ## Docker
 
+Images are published to `ghcr.io/revise0592/mcpanel` for x86-64 and ARM64
+(`latest`, or a version such as `1.0.0`). With the included
+[`compose.yaml`](compose.yaml):
+
 ```sh
 docker compose up -d
 docker compose logs mcpanel     # shows the first-time setup code
 ```
 
-Then open `http://<host>:8080`. Everything lives in `./data`, the same layout
+Then open `http://<host>:8080`. To build the image yourself instead, swap
+`image:` for `build: .` in `compose.yaml`. Everything lives in `./data`, the same layout
 as running the binary directly, so you can move between the two.
 
 - **Ports:** the compose file maps the panel (8080), Java servers
@@ -78,10 +83,9 @@ as running the binary directly, so you can move between the two.
   by you:
 
   ```sh
-  podman build -t mcpanel .
   podman run -d --name mcpanel --init --userns=keep-id \
     -p 8080:8080 -p 25565-25575:25565-25575 -p 19132-19141:19132-19141/udp \
-    -v ./data:/data:Z mcpanel
+    -v ./data:/data:Z ghcr.io/revise0592/mcpanel:latest
   ```
 
 The image is Debian-based (not Alpine) because the Java runtimes McPanel
@@ -114,6 +118,13 @@ make check   # gofmt, go vet, tests
 
 Frontend: Go `html/template` with [htmx](https://htmx.org), all embedded in the
 binary. No Node build step.
+
+## Releases
+
+Publishing a GitHub release with a tag like `v1.0.0` runs
+[`release.yml`](.github/workflows/release.yml), which pushes the multi-arch
+Docker image and attaches Linux binaries (`mcpanel-linux-amd64`,
+`mcpanel-linux-arm64`) plus `SHA256SUMS` to the release.
 
 ## License
 

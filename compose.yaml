@@ -3,8 +3,10 @@
 #   docker compose logs mcpanel
 services:
   mcpanel:
-    build: .
-    image: mcpanel:latest
+    image: ghcr.io/revise0592/mcpanel:latest
+    # To build from this folder instead of pulling a release, swap the line
+    # above for:
+    # build: .
     container_name: mcpanel
     restart: unless-stopped
     # Reaps any stray child processes left by game servers.
