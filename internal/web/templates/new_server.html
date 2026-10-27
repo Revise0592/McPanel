@@ -1,0 +1,72 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="page-head"><h1>New server</h1></div>
+<form class="card" method="post" action="/servers">
+  <div class="field">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" maxlength="40" required autofocus placeholder="Survival world">
+  </div>
+
+  <div class="field">
+    <label>Type</label>
+    <div class="segmented" data-type-picker hx-get="/versions" hx-trigger="change" hx-target="#versions" hx-include="[name='type']">
+      <label><input type="radio" name="type" value="paper" checked>Paper<span>Java, supports plugins</span></label>
+      <label><input type="radio" name="type" value="vanilla">Vanilla<span>Java, unmodified</span></label>
+      <label><input type="radio" name="type" value="fabric">Fabric<span>Java, supports mods</span></label>
+      <label><input type="radio" name="type" value="bedrock">Bedrock<span>Phones, consoles, Windows</span></label>
+    </div>
+  </div>
+
+  <div class="fields">
+    <div class="field">
+      <label for="version">Version</label>
+      <div id="versions">{{template "version-options" $d}}</div>
+    </div>
+    <div class="field" data-java-only>
+      <label for="memory">Memory</label>
+      <select id="memory" name="memory">
+        <option value="1024">1 GB</option>
+        <option value="2048" selected>2 GB</option>
+        <option value="3072">3 GB</option>
+        <option value="4096">4 GB</option>
+        <option value="6144">6 GB</option>
+        <option value="8192">8 GB</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="gamemode">Game mode</label>
+      <select id="gamemode" name="gamemode">
+        <option value="survival">Survival</option>
+        <option value="creative">Creative</option>
+        <option value="adventure">Adventure</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="difficulty">Difficulty</label>
+      <select id="difficulty" name="difficulty">
+        <option value="peaceful">Peaceful</option>
+        <option value="easy">Easy</option>
+        <option value="normal" selected>Normal</option>
+        <option value="hard">Hard</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="port">Port</label>
+      <input type="number" id="port" name="port" min="1" max="65535" placeholder="Automatic">
+    </div>
+  </div>
+
+  <div class="field">
+    <label class="check"><input type="checkbox" name="whitelist">
+      <span><strong>Whitelist</strong><span class="help" style="display:block">Only players you add on the Players tab can join. You can change this later.</span></span></label>
+  </div>
+  <div class="field">
+    <label class="check"><input type="checkbox" name="eula" required>
+      <span>I accept the <a href="https://www.minecraft.net/eula" target="_blank" rel="noopener">Minecraft EULA</a>.</span></label>
+  </div>
+  <div class="form-actions">
+    <a class="btn ghost" href="/">Cancel</a>
+    <button class="btn primary">Create server</button>
+  </div>
+</form>
+{{end}}

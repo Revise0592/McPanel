@@ -1,0 +1,35 @@
+{{define "content"}}
+{{$v := .Data}}
+{{template "server-header" $v}}
+{{template "server-tabs" $v}}
+<div class="stack">
+  <div class="card">
+    <h2>Installed {{$v.AddonNoun}}s</h2>
+    <ul class="list">
+    {{range $v.Addons}}
+      <li>
+        <span class="name"><strong>{{.Title}}</strong> {{if .Version}}<span class="muted small">{{.Version}}</span>{{end}}
+          {{if not .Enabled}}<span class="tag">Turned off</span>{{end}}</span>
+        <span class="actions">
+          <form class="inline" method="post" action="/servers/{{$v.ID}}/addons/toggle"><input type="hidden" name="file" value="{{.File}}">
+            <button class="btn small">{{if .Enabled}}Turn off{{else}}Turn on{{end}}</button></form>
+          {{if .ProjectID}}<form class="inline" method="post" action="/servers/{{$v.ID}}/addons/install"><input type="hidden" name="project" value="{{.ProjectID}}">
+            <button class="btn small ghost" title="Install the newest version for this Minecraft version">Update</button></form>{{end}}
+          <form class="inline" method="post" action="/servers/{{$v.ID}}/addons/remove" data-confirm="Remove {{.Title}}?"><input type="hidden" name="file" value="{{.File}}">
+            <button class="btn small ghost danger">Remove</button></form>
+        </span>
+      </li>
+    {{else}}<li class="none">No {{$v.AddonNoun}}s installed. Files placed in the <code>{{$v.Folder}}</code> folder also show up here.</li>{{end}}
+    </ul>
+    <p class="muted small" style="margin-top:.75rem">Changes take effect after a restart.</p>
+  </div>
+
+  <div class="card">
+    <h2>Find {{$v.AddonNoun}}s</h2>
+    <p class="muted small">From Modrinth, showing only {{$v.AddonNoun}}s that work with {{typeLabel $v.Type}} {{$v.Version}}. Required dependencies are installed too.</p>
+    <input type="search" name="q" placeholder="Search, e.g. {{if eq $v.Type "fabric"}}Lithium{{else}}EssentialsX{{end}}" aria-label="Search"
+      hx-get="/servers/{{$v.ID}}/addons/search" hx-trigger="input changed delay:400ms, search, load" hx-target="#results">
+    <div id="results"></div>
+  </div>
+</div>
+{{end}}

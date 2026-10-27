@@ -1,0 +1,14 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="page-head"><h1>{{if $d.JustEnabled}}Two-factor sign-in is on{{else}}New recovery codes{{end}}</h1></div>
+<div class="card" style="max-width:640px">
+  <h2>Save your recovery codes</h2>
+  <p>If you lose your phone, each of these codes lets you sign in once. Keep them somewhere safe, like a password manager. <strong>They won't be shown again.</strong>{{if not $d.JustEnabled}} Your old codes no longer work.{{end}}</p>
+  <ul class="recovery-codes mono">{{range $d.Codes}}<li>{{.}}</li>{{end}}</ul>
+  <div class="row">
+    <button class="btn" type="button" data-copy="{{range $i, $c := $d.Codes}}{{if $i}}&#10;{{end}}{{$c}}{{end}}">Copy all</button>
+    <span class="spacer"></span>
+    <a class="btn primary" href="/settings">I've saved them</a>
+  </div>
+</div>
+{{end}}

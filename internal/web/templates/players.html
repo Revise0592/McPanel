@@ -1,0 +1,82 @@
+{{define "content"}}
+{{$v := .Data}}
+{{template "server-header" $v}}
+{{template "server-tabs" $v}}
+{{$act := printf "/servers/%s/players" $v.ID}}
+<div class="split">
+  <div class="stack">
+    {{template "online-manage" $v}}
+
+    {{if $v.Status.Rejected}}
+    <div class="card">
+      <h2>Tried to join</h2>
+      <p class="muted small">These players were turned away because they're not on the whitelist.</p>
+      <ul class="list">
+      {{range $v.Status.Rejected}}
+        <li><span class="name">{{.}}</span>
+          <span class="actions">
+            <form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small primary" name="action" value="allow">Allow</button></form>
+            <form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small ghost" name="action" value="dismiss">Dismiss</button></form>
+          </span></li>
+      {{end}}
+      </ul>
+    </div>
+    {{end}}
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Whitelist</h2>
+        <form class="inline" method="post" action="{{$act}}">
+          {{if $v.WhitelistOn}}<button class="btn small" name="action" value="whitelist-off">Turn off</button>
+          {{else}}<button class="btn small" name="action" value="whitelist-on">Turn on</button>{{end}}
+        </form>
+      </div>
+      <p class="muted small">{{if $v.WhitelistOn}}On: only players on this list can join.{{else}}Off: anyone who knows the address can join.{{end}}</p>
+      <ul class="list">
+      {{range $v.Whitelist}}
+        <li><span class="name">{{.}}</span>
+          <span class="actions"><form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small ghost" name="action" value="unallow">Remove</button></form></span></li>
+      {{else}}<li class="none">Nobody on the list yet.</li>{{end}}
+      </ul>
+      <form class="add-row" method="post" action="{{$act}}">
+        <input type="text" name="name" placeholder="Player name" required aria-label="Player name">
+        <button class="btn" name="action" value="allow">Add</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="stack">
+    <div class="card">
+      <h2>Operators</h2>
+      <p class="muted small">Operators can use commands like /gamemode and /tp in game.</p>
+      <ul class="list">
+      {{range $v.Ops}}
+        <li><span class="name {{if $v.Bedrock}}mono small{{end}}">{{.}}</span>
+          {{if not $v.Bedrock}}<span class="actions"><form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small ghost" name="action" value="deop">Remove</button></form></span>{{end}}</li>
+      {{else}}<li class="none">No operators.</li>{{end}}
+      </ul>
+      <form class="add-row" method="post" action="{{$act}}">
+        <input type="text" name="name" placeholder="Player name" required aria-label="Player name">
+        <button class="btn" name="action" value="op">Add</button>
+      </form>
+      {{if $v.Bedrock}}<p class="muted small" style="margin-top:.5rem">Bedrock lists operators by Xbox ID. The player must have joined once, and the server must be running.</p>{{end}}
+    </div>
+
+    {{if not $v.Bedrock}}
+    <div class="card">
+      <h2>Banned</h2>
+      <ul class="list">
+      {{range $v.Bans}}
+        <li><span class="name">{{.}}</span>
+          <span class="actions"><form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small ghost" name="action" value="unban">Unban</button></form></span></li>
+      {{else}}<li class="none">Nobody is banned.</li>{{end}}
+      </ul>
+      <form class="add-row" method="post" action="{{$act}}">
+        <input type="text" name="name" placeholder="Player name" required aria-label="Player name">
+        <button class="btn danger" name="action" value="ban">Ban</button>
+      </form>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}

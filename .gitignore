@@ -1,0 +1,13 @@
+/bin/
+/data/
+*.test
+
+# Never commit keys or secrets
+github
+github.pub
+id_*
+*_ed25519*
+*_rsa*
+*.pem
+*.key
+.env

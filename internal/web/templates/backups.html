@@ -1,0 +1,54 @@
+{{define "content"}}
+{{$v := .Data}}
+{{template "server-header" $v}}
+{{template "server-tabs" $v}}
+<div class="split">
+  <div class="card">
+    <div class="card-head">
+      <h2>Backups</h2>
+      <form method="post" action="/servers/{{$v.ID}}/backups"><button class="btn primary" {{if $v.Busy}}disabled{{end}}>Back up now</button></form>
+    </div>
+    {{if $v.Busy}}<p class="muted small">{{$v.Status.Task}}… refresh in a moment.</p>{{end}}
+    {{if $v.Backups}}
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Made</th><th>Kind</th><th>Size</th><th></th></tr></thead>
+      <tbody>
+      {{range $v.Backups}}
+        <tr>
+          <td>{{date .Created}}<div class="muted small">{{ago .Created}}</div></td>
+          <td><span class="tag">{{if eq .Label "auto"}}Scheduled{{else if eq .Label "manual"}}Manual{{else if eq .Label "before-restore"}}Before restore{{else if eq .Label "before-update"}}Before update{{else}}{{.Label}}{{end}}</span></td>
+          <td>{{size .Size}}</td>
+          <td class="actions">
+            <a class="btn small ghost" href="/servers/{{$v.ID}}/backups/{{pathEsc .Name}}">Download</a>
+            <form class="inline" method="post" action="/servers/{{$v.ID}}/backups/{{pathEsc .Name}}/restore" data-confirm="Restore this backup? The server will stop, and the current world is backed up first.">
+              <button class="btn small">Restore</button></form>
+            <form class="inline" method="post" action="/servers/{{$v.ID}}/backups/{{pathEsc .Name}}/delete" data-confirm="Delete this backup for good?">
+              <button class="btn small ghost danger">Delete</button></form>
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+    {{else}}<p class="muted">No backups yet.</p>{{end}}
+  </div>
+
+  <form class="card" method="post" action="/servers/{{$v.ID}}/backups/schedule">
+    <h2>Schedule</h2>
+    <div class="field">
+      <label for="every">Back up automatically</label>
+      <select id="every" name="every">
+        {{range $v.Intervals}}<option value="{{.}}" {{if eq . $v.BackupEveryHours}}selected{{end}}>{{if eq . 0}}Never{{else if eq . 1}}Every hour{{else if eq . 24}}Every day{{else if eq . 48}}Every 2 days{{else if eq . 168}}Every week{{else}}Every {{.}} hours{{end}}</option>{{end}}
+      </select>
+      <div class="help">Skipped if nobody has played since the last one.</div>
+    </div>
+    <div class="field">
+      <label for="keep">Scheduled backups to keep</label>
+      <input type="number" id="keep" name="keep" min="1" max="1000" value="{{$v.BackupKeep}}">
+      <div class="help">Older scheduled backups are deleted. Manual ones are always kept.</div>
+    </div>
+    <div class="form-actions"><button class="btn">Save</button></div>
+  </form>
+</div>
+{{end}}

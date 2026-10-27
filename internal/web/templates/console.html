@@ -1,0 +1,25 @@
+{{define "content"}}
+{{$v := .Data}}
+{{template "server-header" $v}}
+{{template "server-tabs" $v}}
+<div class="split">
+  <div class="card">
+    <pre class="console" id="console" data-stream="/servers/{{$v.ID}}/console/stream" aria-live="polite"></pre>
+    <form class="command" id="command-form" method="post" action="/servers/{{$v.ID}}/command" autocomplete="off">
+      <input type="text" name="command" placeholder="Type a command, e.g. say Hello" aria-label="Console command">
+      <button class="btn">Send</button>
+    </form>
+  </div>
+  <div class="stack">
+    {{template "online-summary" $v}}
+    <div class="card">
+      <h2>How to join</h2>
+      {{if $v.Address}}
+      <p>In Minecraft, add a server with this address:</p>
+      <p><span class="mono">{{$v.Address}}</span></p>
+      <p class="muted small">This address works on your own network. For friends elsewhere, forward port {{$v.Port}} ({{if eq $v.Type "bedrock"}}UDP{{else}}TCP{{end}}) on your router and use your public IP.</p>
+      {{else}}<p class="muted">Available once the server is installed.</p>{{end}}
+    </div>
+  </div>
+</div>
+{{end}}

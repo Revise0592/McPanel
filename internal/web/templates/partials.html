@@ -1,0 +1,129 @@
+{{define "brand-mark"}}{{if hasIcon}}<img class="brand-icon" src="{{asset "brand/favicon.ico"}}" alt="">{{else}}<span class="brand-mark"></span>{{end}}{{end}}
+
+{{define "badge"}}{{/* takes serverView */}}
+{{- $s := .Status -}}
+<span class="badge {{if $s.Task}}busy{{else}}{{$s.State}}{{end}}">{{$s.Label}}</span>
+{{- end}}
+
+{{define "power-buttons"}}{{/* takes serverView; card mode adds card=1 */}}
+{{- $s := .Status -}}
+{{- if $s.Task -}}
+{{- else if not .Installed -}}
+  <form class="inline" method="post" action="/servers/{{.ID}}/settings/version"><button class="btn small">Retry install</button></form>
+  {{- if eq .Type "bedrock"}}<a class="btn small ghost" href="/servers/{{.ID}}/settings">Upload zip</a>{{end -}}
+{{- else if eq $s.State "stopping" -}}
+  <button class="btn danger" hx-post="/servers/{{.ID}}/power/kill" data-confirm="Force close without saving? Recent changes in the world may be lost.">Force stop</button>
+{{- else if $s.Online -}}
+  <button class="btn" hx-post="/servers/{{.ID}}/power/restart">Restart</button>
+  <button class="btn" hx-post="/servers/{{.ID}}/power/stop">Stop</button>
+{{- else -}}
+  <button class="btn primary" hx-post="/servers/{{.ID}}/power/start">Start</button>
+{{- end -}}
+{{- end}}
+
+{{define "server-cards"}}
+{{range .}}{{template "server-card" .}}{{end}}
+{{end}}
+
+{{define "server-card"}}
+<div class="card server-card" hx-target="this" hx-swap="outerHTML" hx-vals='{"card":"1"}'>
+  <div class="title">
+    <a href="/servers/{{.ID}}">{{.Name}}</a>
+    {{template "badge" .}}
+  </div>
+  <dl>
+    <dt>Type</dt><dd>{{typeLabel .Type}} {{.Version}}</dd>
+    <dt>Address</dt><dd>{{if .Address}}<span class="mono">{{.Address}}</span>{{else}}<span class="muted">Not set yet</span>{{end}}</dd>
+    <dt>Players</dt><dd>{{if .Status.Online}}{{len .Status.Players}} online{{else}}<span class="muted">-</span>{{end}}</dd>
+  </dl>
+  <div class="row">
+    {{template "power-buttons" .}}
+    <span class="spacer"></span>
+    <a class="btn ghost small" href="/servers/{{.ID}}">Open</a>
+  </div>
+</div>
+{{end}}
+
+{{define "server-header"}}
+<div class="server-header" hx-get="/servers/{{.ID}}/status" hx-trigger="every 3s" hx-swap="outerHTML" hx-target="this">
+  <div>
+    <h1>{{.Name}}</h1>
+    <div class="meta">
+      {{template "badge" .}}
+      <span>{{typeLabel .Type}} {{.Version}}{{if .Build}} <span class="muted">({{if eq .Type "fabric"}}loader {{else}}build {{end}}{{.Build}})</span>{{end}}</span>
+      {{if .Address}}<span>·</span><span class="mono">{{.Address}}</span>
+      <button class="btn ghost small" type="button" data-copy="{{.Address}}">Copy</button>{{end}}
+      {{if and .Status.Online (eq .Status.State "running")}}<span>· up {{since .Status.StartedAt}}</span>{{end}}
+    </div>
+  </div>
+  <div class="actions">{{template "power-buttons" .}}</div>
+</div>
+{{end}}
+
+{{define "server-tabs"}}
+<nav class="tabs">
+  <a href="/servers/{{.ID}}" {{if eq .Tab "console"}}class="active"{{end}}>Console</a>
+  <a href="/servers/{{.ID}}/players" {{if eq .Tab "players"}}class="active"{{end}}>Players</a>
+  {{if .AddonNoun}}<a href="/servers/{{.ID}}/addons" {{if eq .Tab "addons"}}class="active"{{end}}>{{title .AddonNoun}}s</a>{{end}}
+  <a href="/servers/{{.ID}}/backups" {{if eq .Tab "backups"}}class="active"{{end}}>Backups</a>
+  <a href="/servers/{{.ID}}/settings" {{if eq .Tab "settings"}}class="active"{{end}}>Settings</a>
+</nav>
+{{end}}
+
+{{define "version-options"}}
+{{if .Err}}<p class="muted small">{{.Err}}</p>{{end}}
+<select name="version" id="version" required>
+  {{range $i, $v := .Versions}}<option value="{{$v}}" {{if eq $v $.Selected}}selected{{end}}>{{if eq $v "latest"}}Latest release{{else}}{{$v}}{{end}}{{if eq $i 0}}{{if ne $v "latest"}} (latest){{end}}{{end}}</option>{{end}}
+</select>
+{{if eq .Type "bedrock"}}<div class="help">Mojang only offers the newest Bedrock release.</div>{{end}}
+{{end}}
+
+{{define "addon-results"}}
+{{if .Err}}<p class="muted">{{.Err}}</p>{{end}}
+<div class="results">
+{{range .Hits}}
+  <div class="result">
+    {{if .IconURL}}<img src="{{.IconURL}}" alt="" loading="lazy">{{else}}<div class="noicon"></div>{{end}}
+    <div class="info">
+      <strong>{{.Title}}</strong> <span class="muted small">by {{.Author}} · {{.Downloads}} downloads</span>
+      <p>{{.Description}}</p>
+    </div>
+    <form method="post" action="/servers/{{$.ID}}/addons/install">
+      <input type="hidden" name="project" value="{{.ProjectID}}">
+      <button class="btn small">Install</button>
+    </form>
+  </div>
+{{else}}
+  {{if not .Err}}<p class="muted">Nothing found for this version.</p>{{end}}
+{{end}}
+</div>
+{{end}}
+
+{{define "online-summary"}}{{/* takes serverView; refreshes itself */}}
+<div class="card" hx-get="/servers/{{.ID}}/online?view=summary" hx-trigger="every 4s" hx-swap="outerHTML">
+  <h2>Players online{{if .Status.Players}} <span class="muted">({{len .Status.Players}})</span>{{end}}</h2>
+  {{if .Status.Players}}
+  <ul class="list">{{range .Status.Players}}<li><span class="name">{{.}}</span></li>{{end}}</ul>
+  {{else}}<p class="muted">{{if .Status.Online}}Nobody is on right now.{{else}}The server is offline.{{end}}</p>{{end}}
+  <a class="small" href="/servers/{{.ID}}/players">Manage players</a>
+</div>
+{{end}}
+
+{{define "online-manage"}}{{/* takes serverView; refreshes itself */}}
+{{$act := printf "/servers/%s/players" .ID}}{{$bedrock := eq .Type "bedrock"}}
+<div class="card" hx-get="/servers/{{.ID}}/online?view=manage" hx-trigger="every 4s" hx-swap="outerHTML">
+  <h2>Online now{{if .Status.Players}} <span class="muted">({{len .Status.Players}})</span>{{end}}</h2>
+  <ul class="list">
+  {{range .Status.Players}}
+    <li><span class="name">{{.}}</span>
+      <span class="actions">
+        <form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small" name="action" value="op">Make operator</button></form>
+        <form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small" name="action" value="kick">Kick</button></form>
+        {{if not $bedrock}}<form class="inline" method="post" action="{{$act}}" data-confirm="Ban {{.}}?"><input type="hidden" name="name" value="{{.}}"><button class="btn small danger" name="action" value="ban">Ban</button></form>{{end}}
+      </span></li>
+  {{else}}
+    <li class="none">{{if .Status.Online}}Nobody is on right now.{{else}}The server is offline.{{end}}</li>
+  {{end}}
+  </ul>
+</div>
+{{end}}

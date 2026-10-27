@@ -1,0 +1,21 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="page-head"><h1>Set up two-factor sign-in</h1></div>
+<div class="stack" style="max-width:640px">
+  <div class="card">
+    <h2>1. Add {{.Panel.PanelName}} to your authenticator app</h2>
+    <p class="muted">Scan this with the app on your phone.</p>
+    <img class="qr" src="{{$d.QR}}" alt="QR code for your authenticator app" width="240" height="240">
+    <p class="muted small">Can't scan it? Add an account manually with this key (time-based):</p>
+    <p><code class="secret">{{$d.Secret}}</code></p>
+  </div>
+  <form class="card" method="post" action="/settings/2fa">
+    <h2>2. Enter the code it shows</h2>
+    <div class="add-row">
+      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456" required autofocus aria-label="Code from your app" class="mono">
+      <button class="btn primary">Turn on</button>
+    </div>
+  </form>
+  <p><a href="/settings">Cancel</a></p>
+</div>
+{{end}}

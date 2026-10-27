@@ -1,0 +1,79 @@
+{{define "content"}}
+<div class="page-head"><h1>Settings</h1></div>
+<div class="stack" style="max-width:640px">
+  <form class="card" method="post" action="/settings">
+    <h2>Look</h2>
+    <div class="field">
+      <label for="panelName">Panel name</label>
+      <input type="text" id="panelName" name="panelName" value="{{.Panel.PanelName}}" maxlength="40" required>
+    </div>
+    <div class="fields">
+      <div class="field">
+        <label for="accent">Accent colour</label>
+        <input type="color" id="accent" name="accent" value="{{.Panel.Accent}}">
+      </div>
+      <div class="field">
+        <label for="theme">Theme</label>
+        <select id="theme" name="theme">
+          <option value="system" {{if eq .Panel.Theme "system"}}selected{{end}}>Match my device</option>
+          <option value="light" {{if eq .Panel.Theme "light"}}selected{{end}}>Light</option>
+          <option value="dark" {{if eq .Panel.Theme "dark"}}selected{{end}}>Dark</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions"><button class="btn primary">Save</button></div>
+  </form>
+
+  <form class="card" method="post" action="/settings/password">
+    <h2>Password</h2>
+    <div class="field">
+      <label for="current">Current password</label>
+      <input type="password" id="current" name="current" autocomplete="current-password" required>
+    </div>
+    <div class="fields">
+      <div class="field">
+        <label for="password">New password</label>
+        <input type="password" id="password" name="password" autocomplete="new-password" minlength="8" required>
+      </div>
+      <div class="field">
+        <label for="confirm">Repeat new password</label>
+        <input type="password" id="confirm" name="confirm" autocomplete="new-password" minlength="8" required>
+      </div>
+    </div>
+    <div class="form-actions"><button class="btn">Change password</button></div>
+  </form>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>Two-factor sign-in</h2>
+      <span class="badge {{if .Panel.TwoFactor}}running{{end}}">{{if .Panel.TwoFactor}}On{{else}}Off{{end}}</span>
+    </div>
+    {{if .Panel.TwoFactor}}
+    <p class="muted">Signing in needs your password and a code from your authenticator app. {{len .Panel.RecoveryHashes}} recovery codes left.</p>
+    <form method="post" action="/settings/2fa/codes" class="add-row">
+      <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="Code from your app" required aria-label="Code from your app">
+      <button class="btn">New recovery codes</button>
+    </form>
+    <details style="margin-top:1rem">
+      <summary>Turn off two-factor sign-in</summary>
+      <form method="post" action="/settings/2fa/disable" style="margin-top:.75rem">
+        <div class="fields">
+          <div class="field">
+            <label for="tf-password">Password</label>
+            <input type="password" id="tf-password" name="password" autocomplete="current-password" required>
+          </div>
+          <div class="field">
+            <label for="tf-code">Code from your app (or a recovery code)</label>
+            <input type="text" id="tf-code" name="code" autocomplete="one-time-code" required>
+          </div>
+        </div>
+        <div class="form-actions"><button class="btn danger">Turn off</button></div>
+      </form>
+    </details>
+    {{else}}
+    <p class="muted">Ask for a code from an authenticator app (such as Google Authenticator, Aegis, 1Password or Bitwarden) as well as your password when signing in.</p>
+    <div class="form-actions"><a class="btn primary" href="/settings/2fa">Set up</a></div>
+    {{end}}
+  </div>
+</div>
+{{end}}

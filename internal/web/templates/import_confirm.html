@@ -1,0 +1,62 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="page-head"><h1>Import a server</h1></div>
+<div class="card">
+  <h2>What was found</h2>
+  <ul class="list">
+    <li><span class="name muted">Type</span><span>{{if $d.WorldOnly}}A single world{{else}}{{typeLabel $d.Type}} server{{end}}</span></li>
+    {{if ne $d.Type "bedrock"}}<li><span class="name muted">Minecraft version</span><span>{{if $d.Version}}{{$d.Version}}{{else}}Couldn't tell{{end}}</span></li>{{end}}
+    <li><span class="name muted">Worlds</span><span>{{if $d.Worlds}}{{range $i, $w := $d.Worlds}}{{if $i}}, {{end}}{{$w}}{{end}}{{else}}None yet{{end}}</span></li>
+    {{if $d.Addons}}<li><span class="name muted">{{if eq $d.Type "fabric"}}Mods{{else}}Plugins{{end}}</span><span>{{$d.Addons}}</span></li>{{end}}
+  </ul>
+  {{range $d.Notes}}<p class="muted small" style="margin-top:.75rem">{{.}}</p>{{end}}
+</div>
+
+<form class="card" method="post" action="/import/{{$d.Token}}" data-busy="Importing…" style="margin-top:1rem">
+  <h2>Check and import</h2>
+  {{if $d.PortNote}}<div class="flash">{{$d.PortNote}}</div>{{end}}
+  <div class="field">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" maxlength="40" required value="{{$d.Name}}">
+  </div>
+  <div class="field">
+    <label>Type</label>
+    <div class="segmented" data-type-picker hx-get="/versions" hx-trigger="change" hx-target="#versions" hx-include="[name='type']">
+      <label><input type="radio" name="type" value="paper" {{if eq $d.Type "paper"}}checked{{end}}>Paper<span>Java, supports plugins</span></label>
+      <label><input type="radio" name="type" value="vanilla" {{if eq $d.Type "vanilla"}}checked{{end}}>Vanilla<span>Java, unmodified</span></label>
+      <label><input type="radio" name="type" value="fabric" {{if eq $d.Type "fabric"}}checked{{end}}>Fabric<span>Java, supports mods</span></label>
+      <label><input type="radio" name="type" value="bedrock" {{if eq $d.Type "bedrock"}}checked{{end}}>Bedrock<span>Phones, consoles, Windows</span></label>
+    </div>
+  </div>
+  <div class="fields">
+    <div class="field">
+      <label for="version">Version</label>
+      <div id="versions">{{template "version-options" $d.Choice}}</div>
+      {{if $d.Unknown}}<div class="help">{{if $d.Version}}Version {{$d.Version}} isn't available for this type.{{else}}Couldn't detect the version.{{end}} Pick the one the world was last played on. Going back to an older version can break worlds.</div>{{end}}
+    </div>
+    <div class="field" data-java-only>
+      <label for="memory">Memory</label>
+      <select id="memory" name="memory">
+        <option value="1024">1 GB</option>
+        <option value="2048" selected>2 GB</option>
+        <option value="3072">3 GB</option>
+        <option value="4096">4 GB</option>
+        <option value="6144">6 GB</option>
+        <option value="8192">8 GB</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="port">Port</label>
+      <input type="number" id="port" name="port" min="1" max="65535" required value="{{$d.Port}}">
+    </div>
+  </div>
+  <div class="field">
+    <label class="check"><input type="checkbox" name="eula" required>
+      <span>I accept the <a href="https://www.minecraft.net/eula" target="_blank" rel="noopener">Minecraft EULA</a>.</span></label>
+  </div>
+  <div class="form-actions">
+    <button class="btn ghost" type="submit" formaction="/import/{{$d.Token}}/cancel" formnovalidate>Cancel</button>
+    <button class="btn primary" type="submit">Import</button>
+  </div>
+</form>
+{{end}}

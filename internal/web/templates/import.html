@@ -1,0 +1,19 @@
+{{define "content"}}
+<div class="page-head"><h1>Import a server</h1></div>
+<form class="card" method="post" action="/import" enctype="multipart/form-data" data-busy="Uploading…">
+  <p>Upload a zip of a server folder from another host, or of a single world. McPanel works out the type and version, then lets you check everything before importing.</p>
+  <ul class="muted small">
+    <li>Works with Paper, Spigot, Bukkit, Purpur, Fabric, Vanilla and Bedrock servers.</li>
+    <li>Worlds, settings, plugins, mods and player lists are kept.</li>
+    <li>A zip of just a world (Java world folder or Bedrock <code>.mcworld</code> contents) creates a new server around it.</li>
+  </ul>
+  <div class="field">
+    <label for="zip">Server or world zip</label>
+    <input type="file" id="zip" name="zip" accept=".zip,.mcworld" required>
+  </div>
+  <div class="form-actions">
+    <a class="btn ghost" href="/">Cancel</a>
+    <button class="btn primary">Upload</button>
+  </div>
+</form>
+{{end}}

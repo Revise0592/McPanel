@@ -1,0 +1,23 @@
+# Example systemd unit. Copy to /etc/systemd/system/mcpanel.service, adjust
+# the user and paths, then: systemctl enable --now mcpanel
+[Unit]
+Description=McPanel Minecraft server panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=minecraft
+Group=minecraft
+WorkingDirectory=/opt/mcpanel
+ExecStart=/opt/mcpanel/mcpanel -data /opt/mcpanel/data -addr :8080
+# McPanel stops every game server on SIGTERM so worlds are saved.
+KillMode=mixed
+TimeoutStopSec=120
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/mcpanel/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

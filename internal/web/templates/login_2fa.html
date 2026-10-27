@@ -1,0 +1,14 @@
+{{define "content"}}
+<div class="auth">
+  <div class="brand">{{template "brand-mark"}}{{.Panel.PanelName}}</div>
+  <form class="card" method="post" action="/login/code">
+    <div class="field">
+      <label for="code">Code from your authenticator app</label>
+      <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="12" required autofocus class="mono">
+      <div class="help">Lost your phone? Enter one of your recovery codes instead.</div>
+    </div>
+    <button class="btn primary" style="width:100%">Sign in</button>
+  </form>
+  <p class="muted small" style="text-align:center;margin-top:1rem"><a href="/login">Start over</a></p>
+</div>
+{{end}}
