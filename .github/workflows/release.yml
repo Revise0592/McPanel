@@ -9,27 +9,39 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to build (e.g. v1.0.0)
-        required: true
+        description: Release tag to build (leave empty for the latest release)
+        required: false
 
 permissions:
   contents: write   # upload release assets
   packages: write   # push to ghcr.io
 
-env:
-  TAG: ${{ github.event.release.tag_name || inputs.tag }}
-
 jobs:
   version:
     runs-on: ubuntu-latest
     outputs:
+      tag: ${{ steps.v.outputs.tag }}
       version: ${{ steps.v.outputs.version }}
       minor: ${{ steps.v.outputs.minor }}
       major: ${{ steps.v.outputs.major }}
     steps:
       - id: v
-        # Accept v1.2.3, V1.2.3 or 1.2.3.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        # Accept v1.2.3, V1.2.3 or 1.2.3; with no tag given, use the latest
+        # release.
         run: |
+          TAG="$(echo "$TAG" | xargs)"
+          if [ -z "$TAG" ]; then
+            TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)"
+            echo "No tag given; using the latest release, $TAG"
+          fi
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::There's no release with tag '$TAG'. Releases: $(gh release list --repo "$GITHUB_REPOSITORY" --json tagName --jq '[.[].tagName] | join(", ")')"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           version="${TAG#[vV]}"
           if ! [[ "$version" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
             echo "::error::Release tag '$TAG' isn't a version like v1.2.3"
@@ -45,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.version.outputs.tag }}
       - name: Image name
         # ghcr.io needs a lowercase name; the repo is Revise0592/McPanel.
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
@@ -87,7 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ env.TAG }}
+          ref: ${{ needs.version.outputs.tag }}
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
@@ -107,4 +119,5 @@ jobs:
       - name: Attach to release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.tag }}
         run: gh release upload "$TAG" dist/* --clobber
