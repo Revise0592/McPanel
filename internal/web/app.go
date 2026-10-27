@@ -20,6 +20,7 @@ import (
 
 	"github.com/Revise0592/McPanel/internal/auth"
 	"github.com/Revise0592/McPanel/internal/backup"
+	"github.com/Revise0592/McPanel/internal/heads"
 	"github.com/Revise0592/McPanel/internal/importer"
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
@@ -42,6 +43,7 @@ type App struct {
 	pages    map[string]*template.Template
 	partials *template.Template
 	imports  importSet
+	heads    *heads.Cache
 }
 
 // New builds the app and parses templates.
@@ -52,6 +54,7 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 		SetupCode: setupCode,
 		limiter:   auth.NewLimiter(),
 		pages:     map[string]*template.Template{},
+		heads:     heads.New(),
 	}
 	importer.CleanStale(filepath.Join(mgr.DataDir(), "tmp"))
 	a.sessions = &auth.Sessions{
@@ -84,6 +87,7 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 			return strings.ToUpper(s[:1]) + s[1:]
 		},
 		"pathEsc":    url.PathEscape,
+		"headURL":    headURL,
 		"hasIcon":    func() bool { return hasIcon },
 		"logo":       a.logoURL,
 		"accentText": accentText,
@@ -152,6 +156,7 @@ func (a *App) Handler() http.Handler {
 	p("GET /servers/{id}/players", a.playersPage)
 	p("GET /servers/{id}/online", a.onlinePartial)
 	p("POST /servers/{id}/players", a.playersAction)
+	p("GET /heads/{name}", a.playerHead)
 
 	p("GET /servers/{id}/settings", a.settingsPage)
 	p("POST /servers/{id}/settings/game", a.saveGameSettings)

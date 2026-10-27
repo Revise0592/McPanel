@@ -13,7 +13,7 @@
       <p class="muted small">These players were turned away because they're not on the whitelist.</p>
       <ul class="list">
       {{range $v.Status.Rejected}}
-        <li><span class="name">{{.}}</span>
+        <li><img class="head" src="{{headURL $v.Type .}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.}}</span>
           <span class="actions">
             <form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small primary" name="action" value="allow">Allow</button></form>
             <form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small ghost" name="action" value="dismiss">Dismiss</button></form>
@@ -34,7 +34,7 @@
       <p class="muted small">{{if $v.WhitelistOn}}On: only players on this list can join.{{else}}Off: anyone who knows the address can join.{{end}}</p>
       <ul class="list">
       {{range $v.Whitelist}}
-        <li><span class="name">{{.}}</span>
+        <li><img class="head" src="{{headURL $v.Type .}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.}}</span>
           <span class="actions"><form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small ghost" name="action" value="unallow">Remove</button></form></span></li>
       {{else}}<li class="none">Nobody on the list yet.</li>{{end}}
       </ul>
@@ -51,7 +51,7 @@
       <p class="muted small">Operators can use commands like /gamemode and /tp in game.</p>
       <ul class="list">
       {{range $v.Ops}}
-        <li><span class="name {{if $v.Bedrock}}mono small{{end}}">{{.}}</span>
+        <li><img class="head" src="{{headURL $v.Type .}}" alt="" width="20" height="20" loading="lazy"><span class="name {{if $v.Bedrock}}mono small{{end}}">{{.}}</span>
           {{if not $v.Bedrock}}<span class="actions"><form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small ghost" name="action" value="deop">Remove</button></form></span>{{end}}</li>
       {{else}}<li class="none">No operators.</li>{{end}}
       </ul>
@@ -67,7 +67,7 @@
       <h2>Banned</h2>
       <ul class="list">
       {{range $v.Bans}}
-        <li><span class="name">{{.}}</span>
+        <li><img class="head" src="{{headURL $v.Type .}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.}}</span>
           <span class="actions"><form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small ghost" name="action" value="unban">Unban</button></form></span></li>
       {{else}}<li class="none">Nobody is banned.</li>{{end}}
       </ul>

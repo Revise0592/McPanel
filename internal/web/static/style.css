@@ -234,6 +234,7 @@ input[type=color] { width: 3rem; height: 2.3rem; padding: 0; border: 1px solid v
 .list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .list .actions { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: flex-end; }
 .list .none { color: var(--muted); }
+.list .head { width: 20px; height: 20px; flex: none; margin-right: -.25rem; border-radius: 3px; image-rendering: pixelated; }
 
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: .6rem .5rem; border-top: 1px solid var(--border); vertical-align: middle; }

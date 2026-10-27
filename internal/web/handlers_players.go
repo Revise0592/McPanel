@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -33,6 +34,22 @@ func (a *App) playersPage(w http.ResponseWriter, r *http.Request) {
 	d.Ops, _ = players.Read(sv, inst.Dir(), players.Ops)
 	d.Bans, _ = players.Read(sv, inst.Dir(), players.Bans)
 	a.render(w, r, "players", sv.Name+" players", "servers", d)
+}
+
+// headURL is the face icon shown beside a player's name. Bedrock names
+// aren't Java accounts, so they always get the placeholder.
+func headURL(typ, name string) string {
+	if !store.IsJava(typ) {
+		return "/heads/-"
+	}
+	return "/heads/" + url.PathEscape(name)
+}
+
+func (a *App) playerHead(w http.ResponseWriter, r *http.Request) {
+	b := a.heads.Get(r.Context(), r.PathValue("name"))
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "private, max-age=21600")
+	w.Write(b)
 }
 
 func (a *App) onlinePartial(w http.ResponseWriter, r *http.Request) {

@@ -113,7 +113,7 @@
 <div class="card" hx-get="/servers/{{.ID}}/online?view=summary" hx-trigger="every 4s" hx-swap="outerHTML">
   <h2>Players online{{if .Status.Players}} <span class="muted">({{len .Status.Players}})</span>{{end}}</h2>
   {{if .Status.Players}}
-  <ul class="list">{{range .Status.Players}}<li><span class="name">{{.}}</span></li>{{end}}</ul>
+  <ul class="list">{{range .Status.Players}}<li><img class="head" src="{{headURL $.Type .}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.}}</span></li>{{end}}</ul>
   {{else}}<p class="muted">{{if .Status.Online}}Nobody is on right now.{{else}}The server is offline.{{end}}</p>{{end}}
   <a class="small" href="/servers/{{.ID}}/players">Manage players</a>
 </div>
@@ -125,7 +125,7 @@
   <h2>Online now{{if .Status.Players}} <span class="muted">({{len .Status.Players}})</span>{{end}}</h2>
   <ul class="list">
   {{range .Status.Players}}
-    <li><span class="name">{{.}}</span>
+    <li><img class="head" src="{{headURL $.Type .}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.}}</span>
       <span class="actions">
         <form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small" name="action" value="op">Make operator</button></form>
         <form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small" name="action" value="kick">Kick</button></form>
