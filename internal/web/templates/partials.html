@@ -66,6 +66,7 @@
   <a href="/servers/{{.ID}}/players" {{if eq .Tab "players"}}class="active"{{end}}>Players</a>
   {{if .AddonNoun}}<a href="/servers/{{.ID}}/addons" {{if eq .Tab "addons"}}class="active"{{end}}>{{title .AddonNoun}}s</a>{{end}}
   <a href="/servers/{{.ID}}/backups" {{if eq .Tab "backups"}}class="active"{{end}}>Backups</a>
+  <a href="/servers/{{.ID}}/files" {{if eq .Tab "files"}}class="active"{{end}}>Files</a>
   <a href="/servers/{{.ID}}/settings" {{if eq .Tab "settings"}}class="active"{{end}}>Settings</a>
 </nav>
 {{end}}

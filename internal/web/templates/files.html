@@ -1,0 +1,59 @@
+{{define "content"}}
+{{$v := .Data}}
+{{template "server-header" $v}}
+{{template "server-tabs" $v}}
+<div class="split">
+  <div class="card">
+    <div class="card-head">
+      <nav class="crumbs mono" aria-label="Folder">
+        <a href="/servers/{{$v.ID}}/files">server</a>
+        {{range $v.Crumbs}}<span>/</span><a href="/servers/{{$v.ID}}/files?path={{.Path}}">{{.Name}}</a>{{end}}
+      </nav>
+      {{if and $v.Datapacks (ne $v.Path $v.Datapacks)}}<a class="btn small ghost" href="/servers/{{$v.ID}}/files?path={{$v.Datapacks}}">Datapacks</a>{{end}}
+    </div>
+    <div class="table-scroll">
+    <table class="files">
+      <thead><tr><th>Name</th><th>Size</th><th>Changed</th><th></th></tr></thead>
+      <tbody>
+      {{if $v.Path}}<tr><td colspan="4"><a href="/servers/{{$v.ID}}/files{{if $v.Parent}}?path={{$v.Parent}}{{end}}">↑ Up a folder</a></td></tr>{{end}}
+      {{range $v.Entries}}
+        <tr>
+          <td class="name">{{if .Dir}}<a href="/servers/{{$v.ID}}/files?path={{.Path}}">{{.Name}}/</a>{{else}}{{.Name}}{{end}}</td>
+          <td>{{if not .Dir}}{{size .Size}}{{end}}</td>
+          <td class="muted small" title="{{date .Modified}}">{{ago .Modified}}</td>
+          <td class="actions">
+            {{if not .Dir}}<a class="btn small ghost" href="/servers/{{$v.ID}}/files/download?path={{.Path}}">Download</a>{{end}}
+            <form class="inline" method="post" action="/servers/{{$v.ID}}/files/delete" data-confirm="Delete {{.Name}}{{if .Dir}} and everything in it{{end}}? This can't be undone.">
+              <input type="hidden" name="path" value="{{.Path}}">
+              <button class="btn small ghost danger">Delete</button></form>
+          </td>
+        </tr>
+      {{else}}
+        <tr><td colspan="4" class="muted">This folder is empty.</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="stack">
+    <form class="card" method="post" enctype="multipart/form-data" action="/servers/{{$v.ID}}/files/upload{{if $v.Path}}?path={{$v.Path}}{{end}}" data-busy="Uploading…">
+      <h2>Upload</h2>
+      <div class="field">
+        <input type="file" name="files" multiple required aria-label="Files">
+        <div class="help">Goes into <code>/{{$v.Path}}</code>. Files with the same name are replaced. Up to 512 MB at a time.</div>
+      </div>
+      <div class="form-actions"><button class="btn primary">Upload</button></div>
+    </form>
+
+    <form class="card" method="post" action="/servers/{{$v.ID}}/files/mkdir">
+      <h2>New folder</h2>
+      <input type="hidden" name="path" value="{{$v.Path}}">
+      <div class="field"><input type="text" name="name" required aria-label="Folder name" placeholder="Folder name"></div>
+      <div class="form-actions"><button class="btn">Make folder</button></div>
+    </form>
+
+    {{if and $v.Datapacks (eq $v.Path $v.Datapacks)}}<p class="muted small">Datapacks go in the world's <code>datapacks</code> folder as a .zip or a folder. Run <code>/reload</code> in the console, or restart, to load them.</p>{{end}}
+  </div>
+</div>
+{{end}}

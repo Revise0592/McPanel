@@ -221,6 +221,9 @@ th, td { text-align: left; padding: .6rem .5rem; border-top: 1px solid var(--bor
 th { color: var(--muted); font-weight: 550; font-size: .85rem; border-top: 0; }
 td.actions { text-align: right; white-space: nowrap; }
 .table-scroll { overflow-x: auto; }
+.crumbs { display: flex; flex-wrap: wrap; gap: .3rem; min-width: 0; }
+.crumbs span { color: var(--muted); }
+table.files td.name { word-break: break-all; }
 
 /* Add-on results */
 .results { display: grid; gap: .5rem; margin-top: 1rem; }

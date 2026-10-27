@@ -170,6 +170,12 @@ func (a *App) Handler() http.Handler {
 	p("POST /servers/{id}/backups/{name}/restore", a.restoreBackup)
 	p("POST /servers/{id}/backups/{name}/delete", a.deleteBackup)
 
+	p("GET /servers/{id}/files", a.filesPage)
+	p("GET /servers/{id}/files/download", a.downloadFile)
+	p("POST /servers/{id}/files/upload", a.uploadFiles)
+	p("POST /servers/{id}/files/mkdir", a.makeFolder)
+	p("POST /servers/{id}/files/delete", a.deleteFile)
+
 	p("GET /servers/{id}/addons", a.addonsPage)
 	p("GET /servers/{id}/addons/search", a.addonsSearch)
 	p("POST /servers/{id}/addons/install", a.addonsInstall)
