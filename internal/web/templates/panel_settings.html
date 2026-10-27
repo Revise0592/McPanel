@@ -24,8 +24,24 @@
     <div class="form-actions"><button class="btn primary">Save</button></div>
   </form>
 
+  <form class="card" method="post" action="/settings/username">
+    <h2>Username</h2>
+    <div class="fields">
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" value="{{.Panel.Username}}" autocomplete="username" maxlength="32" pattern="[A-Za-z0-9._\-]+" required>
+      </div>
+      <div class="field">
+        <label for="u-current">Current password</label>
+        <input type="password" id="u-current" name="current" autocomplete="current-password" required>
+      </div>
+    </div>
+    <div class="form-actions"><button class="btn">Change username</button></div>
+  </form>
+
   <form class="card" method="post" action="/settings/password">
     <h2>Password</h2>
+    <input type="text" name="username" value="{{.Panel.Username}}" autocomplete="username" hidden aria-hidden="true">
     <div class="field">
       <label for="current">Current password</label>
       <input type="password" id="current" name="current" autocomplete="current-password" required>

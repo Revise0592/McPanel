@@ -3,8 +3,12 @@
   <div class="brand">{{template "brand-mark"}}{{.Panel.PanelName}}</div>
   <form class="card" method="post" action="/login">
     <div class="field">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+    </div>
+    <div class="field">
       <label for="password">Password</label>
-      <input type="password" id="password" name="password" autocomplete="current-password" required autofocus>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
     </div>
     <button class="btn primary" style="width:100%">Sign in</button>
   </form>

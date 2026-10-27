@@ -2,7 +2,7 @@
 <div class="auth">
   <div class="brand">{{template "brand-mark"}}Welcome to McPanel</div>
   <form class="card" method="post" action="/setup">
-    <p class="muted">Choose a password for this panel. The setup code is printed in McPanel's log when it starts.</p>
+    <p class="muted">Create the sign-in for this panel. The setup code is printed in McPanel's log when it starts.</p>
     <div class="field">
       <label for="code">Setup code</label>
       <input type="text" id="code" name="code" autocomplete="off" required autofocus class="mono">
@@ -10,6 +10,10 @@
     <div class="field">
       <label for="panelName">Panel name</label>
       <input type="text" id="panelName" name="panelName" value="{{.Panel.PanelName}}" maxlength="40">
+    </div>
+    <div class="field">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username" maxlength="32" pattern="[A-Za-z0-9._\-]+" required>
     </div>
     <div class="field">
       <label for="password">Password</label>

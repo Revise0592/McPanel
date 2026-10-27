@@ -39,7 +39,7 @@ make build
 ```
 
 Open `http://<this machine>:8080`. On first launch the panel prints a **setup
-code** in its log; enter it in the browser to choose your password.
+code** in its log; enter it in the browser to choose your username and password.
 
 ### Options
 
@@ -50,7 +50,9 @@ code** in its log; enter it in the browser to choose your password.
 | `-tls-cert`, `-tls-key` | `MCPANEL_TLS_CERT`, `MCPANEL_TLS_KEY` | | Serve HTTPS directly |
 
 Forgot the password or lost your 2FA device? Stop McPanel and run
-`mcpanel reset-password -data ./data`. This also turns two-factor sign-in off.
+`mcpanel reset-password -data ./data`. This also turns two-factor sign-in off,
+and prints your username. Panels set up before usernames were added sign in as
+`admin`.
 In Docker: `docker compose run --rm mcpanel reset-password` (with the panel
 stopped).
 

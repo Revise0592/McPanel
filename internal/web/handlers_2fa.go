@@ -97,7 +97,7 @@ func (a *App) twoFactorSetupPage(w http.ResponseWriter, r *http.Request) {
 		secret = auth.NewTOTPSecret()
 		a.Store.UpdateSettings(func(s *store.Settings) { s.TOTPPending = secret })
 	}
-	uri := auth.TOTPURI(secret, set.PanelName, "admin")
+	uri := auth.TOTPURI(secret, set.PanelName, set.Username)
 	code, err := qr.Encode(uri, qr.M)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

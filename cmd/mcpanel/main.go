@@ -149,11 +149,14 @@ func resetPassword(args []string) {
 	err = st.UpdateSettings(func(s *store.Settings) {
 		s.PasswordHash = auth.HashPassword(pw)
 		s.DisableTwoFactor()
+		if s.Username == "" {
+			s.Username = store.DefaultUsername
+		}
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Password changed.")
+	fmt.Printf("Password changed. Sign in as %q.\n", st.Settings().Username)
 	if twoFactor {
 		fmt.Println("Two-factor sign-in has been turned off; turn it back on in Settings.")
 	}

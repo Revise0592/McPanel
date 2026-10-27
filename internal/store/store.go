@@ -64,11 +64,15 @@ type Server struct {
 	CreatedAt    time.Time         `json:"createdAt"`
 }
 
+// DefaultUsername is given to panels set up before usernames existed.
+const DefaultUsername = "admin"
+
 // Settings holds panel-wide settings.
 type Settings struct {
 	PanelName     string `json:"panelName"`
 	Accent        string `json:"accent"`
 	Theme         string `json:"theme"`
+	Username      string `json:"username,omitempty"`
 	PasswordHash  string `json:"passwordHash,omitempty"`
 	SessionSecret string `json:"sessionSecret"`
 	// Two-factor sign-in. TOTPSecret is set once 2FA is on; TOTPPending
@@ -130,6 +134,12 @@ func Open(dataDir string) (*Store, error) {
 	}
 	if s.data.Settings.Theme == "" {
 		s.data.Settings.Theme = "system"
+		changed = true
+	}
+	// Panels set up before usernames existed sign in as "admin", the name
+	// their authenticator apps already show.
+	if s.data.Settings.PasswordHash != "" && s.data.Settings.Username == "" {
+		s.data.Settings.Username = DefaultUsername
 		changed = true
 	}
 	if changed {

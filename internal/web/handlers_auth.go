@@ -39,6 +39,12 @@ func (a *App) setupSubmit(w http.ResponseWriter, r *http.Request) {
 		back(w, r, "/setup")
 		return
 	}
+	user := strings.TrimSpace(r.FormValue("username"))
+	if msg := checkUsername(user); msg != "" {
+		setError(w, msg)
+		back(w, r, "/setup")
+		return
+	}
 	pw, pw2 := r.FormValue("password"), r.FormValue("confirm")
 	if msg := checkNewPassword(pw, pw2); msg != "" {
 		setError(w, msg)
@@ -47,14 +53,29 @@ func (a *App) setupSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	hash := auth.HashPassword(pw)
 	a.Store.UpdateSettings(func(s *store.Settings) {
+		s.Username = user
 		s.PasswordHash = hash
 		if n := strings.TrimSpace(r.FormValue("panelName")); n != "" {
 			s.PanelName = n
 		}
 	})
-	log.Printf("admin password set from %s", ip)
+	log.Printf("admin account %q created from %s", user, ip)
 	a.sessions.Issue(w)
 	back(w, r, "/")
+}
+
+var validUsername = regexp.MustCompile(`^[A-Za-z0-9._-]{1,32}$`)
+
+func checkUsername(u string) string {
+	if !validUsername.MatchString(u) {
+		return "Usernames are 1 to 32 letters, numbers, dots, dashes or underscores."
+	}
+	return ""
+}
+
+// usernameMatches compares case-insensitively and in constant time.
+func usernameMatches(want, got string) bool {
+	return subtle.ConstantTimeCompare([]byte(strings.ToLower(want)), []byte(strings.ToLower(strings.TrimSpace(got)))) == 1
 }
 
 func checkNewPassword(pw, confirm string) string {
@@ -82,18 +103,22 @@ func (a *App) loginPage(w http.ResponseWriter, r *http.Request) {
 func (a *App) loginSubmit(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r)
 	if err := a.limiter.Check(ip); err != nil {
-		setError(w, "Too many wrong passwords. Try again in 15 minutes.")
+		setError(w, "Too many failed sign-ins. Try again in 15 minutes.")
 		back(w, r, "/login")
 		return
 	}
-	if !auth.CheckPassword(a.Store.Settings().PasswordHash, r.FormValue("password")) {
+	set := a.Store.Settings()
+	// Check the password even when the username is wrong, so timing doesn't
+	// reveal which one was right.
+	pwOK := auth.CheckPassword(set.PasswordHash, r.FormValue("password"))
+	if !usernameMatches(set.Username, r.FormValue("username")) || !pwOK {
 		a.limiter.Fail(ip)
 		log.Printf("failed sign-in from %s", ip)
-		setError(w, "Wrong password.")
+		setError(w, "Wrong username or password.")
 		back(w, r, "/login")
 		return
 	}
-	if a.Store.Settings().TwoFactor() {
+	if set.TwoFactor() {
 		// Failures are only cleared once the code step passes too, so
 		// re-entering a known password doesn't buy more code guesses.
 		a.sessions.IssuePending(w)
@@ -137,6 +162,23 @@ func (a *App) savePanelSettings(w http.ResponseWriter, r *http.Request) {
 		s.PanelName, s.Accent, s.Theme = name, strings.ToLower(accent), theme
 	})
 	setFlash(w, "Settings saved.")
+	back(w, r, "/settings")
+}
+
+func (a *App) changeUsername(w http.ResponseWriter, r *http.Request) {
+	if !auth.CheckPassword(a.Store.Settings().PasswordHash, r.FormValue("current")) {
+		setError(w, "Your current password is wrong.")
+		back(w, r, "/settings")
+		return
+	}
+	user := strings.TrimSpace(r.FormValue("username"))
+	if msg := checkUsername(user); msg != "" {
+		setError(w, msg)
+		back(w, r, "/settings")
+		return
+	}
+	a.Store.UpdateSettings(func(s *store.Settings) { s.Username = user })
+	setFlash(w, "Username changed. Use it the next time you sign in.")
 	back(w, r, "/settings")
 }
 

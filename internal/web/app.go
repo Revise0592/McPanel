@@ -178,6 +178,7 @@ func (a *App) Handler() http.Handler {
 
 	p("GET /settings", a.panelSettingsPage)
 	p("POST /settings", a.savePanelSettings)
+	p("POST /settings/username", a.changeUsername)
 	p("POST /settings/password", a.changePassword)
 	p("GET /settings/2fa", a.twoFactorSetupPage)
 	p("POST /settings/2fa", a.twoFactorSetupSubmit)
