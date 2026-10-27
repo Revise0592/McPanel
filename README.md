@@ -11,13 +11,15 @@ configure and back up your servers from one page.
 - Live console
 - Settings as plain controls, or edit `server.properties` directly
 - Server icons
-- Players: who's online, kick, ops, bans and whitelist
-- Backups: manual or scheduled, while the server runs
+- Players: who's online, kick, ops, bans and whitelist, with skin heads
+- File browser: upload, download, new folders and delete
+- Backups: manual or scheduled, while the server runs; kept when a server
+  is deleted
 - Plugins and mods from Modrinth, filtered to your version
 - Import a server or world from a zip
 - Restart on crash, start with the panel
 - Two-factor sign-in
-- Light/dark theme and accent colour
+- Light/dark theme, accent colour, panel name and logo
 
 ## Docker
 
@@ -38,17 +40,25 @@ Everything is stored in `./data`.
 - **SELinux** (Fedora, RHEL): mount with `./data:/data:Z`.
 - **Podman (rootless):** add `--userns=keep-id`.
 
-### UnRAID
+### Unraid
 
-Image: `ghcr.io/revise0592/mcpanel:latest`. Map `/data` to an appdata folder and
-add the ports above. In **Extra Parameters**:
+McPanel is in the Community Applications store. Open the **Apps** tab, search
+for **McPanel** and click **Install**. Choose an appdata folder for `/data`, then
+click **Apply**. The setup code is in the container's log.
 
-```
---init --stop-timeout=120 --user 99:100
-```
+Check these settings before you click **Apply** (turn on **Advanced View** to see
+**Extra Parameters**):
 
-On a custom network such as `br0`, add `--dns=1.1.1.1` (or your router's IP) if
-the panel can't load version lists or downloads.
+- **Ports:** 8080 for the panel. Add a port for each server you plan to run:
+  25565–25575/tcp for Java, 19132–19141/udp for Bedrock.
+- **Extra Parameters:** `--init --stop-timeout=120 --user 99:100`. This lets
+  servers save before the container stops, and makes files owned by
+  `nobody:users`.
+- **Custom network** (such as `br0`): if the panel can't load version lists or
+  downloads, add `--dns=1.1.1.1` (or your router's IP) to Extra Parameters.
+
+To set it up by hand instead, use the image `ghcr.io/revise0592/mcpanel:latest`
+with the same settings.
 
 ## Without Docker
 
@@ -81,6 +91,8 @@ turns two-factor sign-in off and shows your username.
   (TCP for Java, UDP for Bedrock).
 - **Bedrock download fails:** get the Linux server zip from minecraft.net and
   use *Settings → Install from a zip*.
+- **Player heads** are fetched from Mojang by the panel, not your browser,
+  and kept in memory for a day. Bedrock players get a plain face.
 - **Exposing the panel to the internet:** put it behind HTTPS, either with
   `-tls-cert`/`-tls-key` or a reverse proxy.
 
