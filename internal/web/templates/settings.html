@@ -67,6 +67,23 @@
     <div class="form-actions"><button class="btn primary">Save</button></div>
   </form>
 
+  {{if isJava $v.Type}}
+  <div class="card">
+    <h2>Server icon</h2>
+    <p class="muted">Shown next to the server in the multiplayer list. Any PNG, JPEG or GIF works; it's cropped to a square and resized to 64×64.</p>
+    <div class="row">
+      {{if $v.HasIcon}}<img class="server-icon" src="/servers/{{$v.ID}}/icon?v={{$v.IconTime}}" alt="Current server icon" width="64" height="64">
+      {{else}}<span class="server-icon none" aria-label="No icon set"></span>{{end}}
+      <form class="row" method="post" action="/servers/{{$v.ID}}/settings/icon" enctype="multipart/form-data">
+        <input type="file" name="icon" accept="image/png,image/jpeg,image/gif" required aria-label="Icon picture">
+        <button class="btn">Upload</button>
+      </form>
+      {{if $v.HasIcon}}<form class="inline" method="post" action="/servers/{{$v.ID}}/settings/icon/remove" data-confirm="Remove the server icon?">
+        <button class="btn ghost danger">Remove</button></form>{{end}}
+    </div>
+  </div>
+  {{end}}
+
   <form class="card" method="post" action="/servers/{{$v.ID}}/settings/version" data-confirm="Change version? The server will stop, be backed up, then update. Going back to an older version can break worlds.">
     <h2>Version</h2>
     <p class="muted">Currently {{typeLabel $v.Type}} {{$v.Version}}{{if $v.Build}} ({{if eq $v.Type "fabric"}}loader{{else}}build{{end}} {{$v.Build}}){{end}}. Worlds and settings are kept.</p>

@@ -158,6 +158,9 @@ func (a *App) Handler() http.Handler {
 	p("POST /servers/{id}/settings/raw", a.saveRawProperties)
 	p("POST /servers/{id}/settings/version", a.changeVersion)
 	p("POST /servers/{id}/settings/bedrock-zip", a.uploadBedrockZip)
+	p("GET /servers/{id}/icon", a.serverIcon)
+	p("POST /servers/{id}/settings/icon", a.uploadServerIcon)
+	p("POST /servers/{id}/settings/icon/remove", a.removeServerIcon)
 	p("POST /servers/{id}/delete", a.deleteServer)
 
 	p("GET /servers/{id}/backups", a.backupsPage)

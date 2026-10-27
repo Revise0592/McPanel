@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Revise0592/McPanel/internal/backup"
+	"github.com/Revise0592/McPanel/internal/icon"
 	"github.com/Revise0592/McPanel/internal/install"
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/props"
@@ -79,6 +80,8 @@ type settingsData struct {
 	Raw      string
 	Versions []string
 	Memory   []int
+	HasIcon  bool
+	IconTime int64 // changes the preview URL so browsers show a new upload
 }
 
 func (a *App) settingsPage(w http.ResponseWriter, r *http.Request) {
@@ -103,6 +106,9 @@ func (a *App) settingsPage(w http.ResponseWriter, r *http.Request) {
 	if !slices.Contains(d.Memory, sv.MemoryMB) && sv.MemoryMB > 0 {
 		d.Memory = append(d.Memory, sv.MemoryMB)
 		slices.Sort(d.Memory)
+	}
+	if fi, err := os.Stat(iconFile(inst)); err == nil {
+		d.HasIcon, d.IconTime = true, fi.ModTime().Unix()
 	}
 	d.Tab = "settings"
 	a.render(w, r, "settings", sv.Name+" settings", "servers", d)
@@ -248,6 +254,62 @@ func (a *App) changeVersion(w http.ResponseWriter, r *http.Request) {
 	})
 	setFlash(w, "Updating. A backup is made first; progress shows in the console.")
 	back(w, r, "/servers/"+sv.ID)
+}
+
+const maxIconUpload = 10 << 20
+
+func iconFile(inst *mc.Instance) string { return filepath.Join(inst.Dir(), icon.FileName) }
+
+func (a *App) serverIcon(w http.ResponseWriter, r *http.Request) {
+	_, inst, ok := a.load(w, r)
+	if !ok {
+		return
+	}
+	w.Header().Set("Cache-Control", "no-cache")
+	http.ServeFile(w, r, iconFile(inst))
+}
+
+func (a *App) uploadServerIcon(w http.ResponseWriter, r *http.Request) {
+	sv, inst, ok := a.load(w, r)
+	if !ok {
+		return
+	}
+	to := "/servers/" + sv.ID + "/settings"
+	if !store.IsJava(sv.Type) {
+		http.NotFound(w, r)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxIconUpload)
+	file, _, err := r.FormFile("icon")
+	if err != nil {
+		setError(w, "Choose a picture to upload (up to 10 MB).")
+		back(w, r, to)
+		return
+	}
+	defer file.Close()
+	b, err := icon.Make(file)
+	if err == nil {
+		err = os.WriteFile(iconFile(inst), b, 0o644)
+	}
+	if err != nil {
+		setError(w, "Couldn't set the icon: "+err.Error())
+	} else {
+		setFlash(w, "Server icon saved."+restartHint(inst))
+	}
+	back(w, r, to)
+}
+
+func (a *App) removeServerIcon(w http.ResponseWriter, r *http.Request) {
+	sv, inst, ok := a.load(w, r)
+	if !ok {
+		return
+	}
+	if err := os.Remove(iconFile(inst)); err != nil && !os.IsNotExist(err) {
+		setError(w, "Couldn't remove the icon: "+err.Error())
+	} else {
+		setFlash(w, "Server icon removed."+restartHint(inst))
+	}
+	back(w, r, "/servers/"+sv.ID+"/settings")
 }
 
 const maxBedrockZip = 512 << 20
