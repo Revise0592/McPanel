@@ -3,6 +3,8 @@ package install
 import (
 	"slices"
 	"testing"
+
+	"github.com/Revise0592/McPanel/internal/store"
 )
 
 func TestSortVersionsDesc(t *testing.T) {
@@ -20,5 +22,26 @@ func TestBedrockZipVersion(t *testing.T) {
 	}
 	if v := BedrockZipVersion("server.zip"); v != "unknown" {
 		t.Errorf("got %q", v)
+	}
+}
+
+func TestIsNewerBuild(t *testing.T) {
+	tests := []struct {
+		sv     store.Server
+		latest string
+		want   bool
+	}{
+		{store.Server{Type: store.TypePaper, Build: "120"}, "121", true},
+		{store.Server{Type: store.TypePaper, Build: "121"}, "121", false},
+		{store.Server{Type: store.TypePaper, Build: ""}, "121", false},
+		{store.Server{Type: store.TypeFabric, Build: "0.16.9"}, "0.16.10", true},
+		{store.Server{Type: store.TypeBedrock, Version: "1.21.50.07"}, "1.21.51.02", true},
+		{store.Server{Type: store.TypeBedrock, Version: "unknown"}, "1.21.51.02", false},
+		{store.Server{Type: store.TypeVanilla, Version: "1.21.4"}, "", false},
+	}
+	for _, tt := range tests {
+		if got := IsNewerBuild(tt.sv, tt.latest); got != tt.want {
+			t.Errorf("IsNewerBuild(%+v, %q) = %v, want %v", tt.sv, tt.latest, got, tt.want)
+		}
 	}
 }

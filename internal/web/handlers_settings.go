@@ -260,16 +260,42 @@ func (a *App) changeVersion(w http.ResponseWriter, r *http.Request) {
 		version = sv.Version
 	}
 	dataDir := a.Mgr.DataDir()
-	go a.Mgr.Install(sv.ID, version, func(inst *mc.Instance) error {
-		if !sv.Installed {
-			return nil
-		}
-		inst.Logf("Backing up before changing version")
-		_, err := backup.Create(dataDir, inst, "before-update")
-		return err
-	})
+	go func() {
+		a.Mgr.Install(sv.ID, version, func(inst *mc.Instance) error {
+			if !sv.Installed {
+				return nil
+			}
+			inst.Logf("Backing up before changing version")
+			_, err := backup.Create(dataDir, inst, "before-update")
+			return err
+		})
+		a.Updates.Recheck(sv.ID)
+	}()
 	setFlash(w, "Updating. A backup is made first; progress shows in the console.")
 	back(w, r, "/servers/"+sv.ID)
+}
+
+func (a *App) checkUpdates(w http.ResponseWriter, r *http.Request) {
+	sv, _, ok := a.load(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	in := a.Updates.Check(ctx, sv.ID)
+	switch {
+	case in.Err != "":
+		setError(w, "Couldn't check for updates: "+in.Err)
+	case install.IsNewerBuild(sv, in.LatestBuild) || len(in.Addons) > 0:
+		setFlash(w, "Updates are available.")
+	default:
+		setFlash(w, "Everything is up to date.")
+	}
+	to := r.FormValue("to")
+	if to != "addons" {
+		to = "settings?s=version"
+	}
+	back(w, r, "/servers/"+sv.ID+"/"+to)
 }
 
 const maxIconUpload = 10 << 20

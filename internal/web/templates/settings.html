@@ -98,6 +98,30 @@
     </form>
 
   {{else if eq $v.Section "version"}}
+    <div class="card">
+      <h2>Updates</h2>
+      {{if $v.NewBuild}}
+      <p class="desc">{{if eq $v.Type "bedrock"}}Bedrock {{$v.NewBuild}} is available. You have {{$v.Version}}.
+        {{else if eq $v.Type "fabric"}}Fabric loader {{$v.NewBuild}} is available. You have {{$v.Build}}.
+        {{else}}{{typeLabel $v.Type}} {{$v.Version}} build {{$v.NewBuild}} is available. You have build {{$v.Build}}.{{end}}</p>
+      <form class="inline" method="post" action="{{$base}}/version" data-confirm="Update now? The server will stop, be backed up, then update and start again if it was running.">
+        <input type="hidden" name="version" value="{{$v.Version}}">
+        <button class="btn primary">Update now</button>
+      </form>
+      {{else if $v.UpdateCheck.Checked.IsZero}}
+      <p class="desc">Not checked yet. McPanel checks every few hours.</p>
+      {{else if $v.UpdateCheck.Err}}
+      <p class="desc">The last check failed: {{$v.UpdateCheck.Err}}</p>
+      {{else}}
+      <p class="desc">{{typeLabel $v.Type}} is up to date{{if eq $v.Type "vanilla"}} for {{$v.Version}}{{end}}.</p>
+      {{end}}
+      {{if $v.AddonUpdates}}<p class="desc"><a href="/servers/{{$v.ID}}/addons">{{len $v.AddonUpdates}} {{$v.AddonNoun}} update{{if gt (len $v.AddonUpdates) 1}}s{{end}} available.</a></p>{{end}}
+      <form class="row" method="post" action="/servers/{{$v.ID}}/updates/check" style="margin-top:.75rem">
+        <button class="btn small ghost">Check now</button>
+        {{if not $v.UpdateCheck.Checked.IsZero}}<span class="muted small">Last checked {{ago $v.UpdateCheck.Checked}}</span>{{end}}
+      </form>
+    </div>
+
     <form class="card" method="post" action="{{$base}}/version" data-confirm="Change version? The server will stop, be backed up, then update. Going back to an older version can break worlds.">
       <h2>Version</h2>
       <p class="desc">Currently {{typeLabel $v.Type}} {{$v.Version}}{{if $v.Build}} ({{if eq $v.Type "fabric"}}loader{{else}}build{{end}} {{$v.Build}}){{end}}. Worlds and settings are kept.</p>

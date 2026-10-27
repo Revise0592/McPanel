@@ -4,16 +4,28 @@
 {{template "server-tabs" $v}}
 <div class="stack">
   <div class="card">
-    <h2>Installed {{$v.AddonNoun}}s</h2>
+    <div class="card-head">
+      <h2>Installed {{$v.AddonNoun}}s</h2>
+      <span class="row">
+      {{if gt (len $v.AddonUpdates) 1}}<form class="inline" method="post" action="/servers/{{$v.ID}}/addons/update">
+        <button class="btn small primary">Update all ({{len $v.AddonUpdates}})</button></form>{{end}}
+      <form class="inline" method="post" action="/servers/{{$v.ID}}/updates/check"><input type="hidden" name="to" value="addons">
+        <button class="btn small ghost" title="{{if $v.UpdateCheck.Checked.IsZero}}Not checked yet{{else}}Last checked {{ago $v.UpdateCheck.Checked}}{{end}}">Check for updates</button></form>
+      </span>
+    </div>
     <ul class="list">
     {{range $v.Addons}}
+      {{$up := $v.Update .}}
       <li>
         <span class="name"><strong>{{.Title}}</strong> {{if .Version}}<span class="muted small">{{.Version}}</span>{{end}}
-          {{if not .Enabled}}<span class="tag">Turned off</span>{{end}}</span>
+          {{if not .Enabled}}<span class="tag">Turned off</span>{{end}}
+          {{if $up}}<span class="tag update">{{$up}} available</span>{{end}}</span>
         <span class="actions">
+          {{if $up}}<form class="inline" method="post" action="/servers/{{$v.ID}}/addons/update"><input type="hidden" name="file" value="{{.File}}">
+            <button class="btn small primary">Update</button></form>{{end}}
           <form class="inline" method="post" action="/servers/{{$v.ID}}/addons/toggle"><input type="hidden" name="file" value="{{.File}}">
             <button class="btn small">{{if .Enabled}}Turn off{{else}}Turn on{{end}}</button></form>
-          {{if .ProjectID}}<form class="inline" method="post" action="/servers/{{$v.ID}}/addons/install"><input type="hidden" name="project" value="{{.ProjectID}}">
+          {{if and .ProjectID (not $up)}}<form class="inline" method="post" action="/servers/{{$v.ID}}/addons/install"><input type="hidden" name="project" value="{{.ProjectID}}">
             <button class="btn small ghost" title="Install the newest version for this Minecraft version">Update</button></form>{{end}}
           <form class="inline" method="post" action="/servers/{{$v.ID}}/addons/remove" data-confirm="Remove {{.Title}}?"><input type="hidden" name="file" value="{{.File}}">
             <button class="btn small ghost danger">Remove</button></form>

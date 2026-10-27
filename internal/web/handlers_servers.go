@@ -15,6 +15,7 @@ import (
 	"github.com/Revise0592/McPanel/internal/install"
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
+	"github.com/Revise0592/McPanel/internal/updates"
 )
 
 // serverView bundles everything a page needs about one server.
@@ -26,6 +27,10 @@ type serverView struct {
 	AddonNoun string
 	Tab       string
 	IconTime  int64 // server icon's change time; 0 when there is none
+	// NewBuild is a newer build of the installed version, if there is one.
+	NewBuild     string
+	AddonUpdates map[string]addons.Update
+	UpdateCheck  updates.Info
 }
 
 func (a *App) view(r *http.Request, sv store.Server) serverView {
@@ -41,6 +46,14 @@ func (a *App) view(r *http.Request, sv store.Server) serverView {
 	}
 	if addons.Supported(sv.Type) {
 		v.AddonNoun = addons.Noun(sv.Type)
+	}
+	// A check made before a version change says nothing about the new one.
+	if in := a.Updates.Get(sv.ID); in.Version == sv.Version {
+		v.UpdateCheck = in
+		if install.IsNewerBuild(sv, in.LatestBuild) {
+			v.NewBuild = in.LatestBuild
+		}
+		v.AddonUpdates = in.Addons
 	}
 	return v
 }

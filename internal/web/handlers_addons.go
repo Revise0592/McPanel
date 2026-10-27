@@ -16,6 +16,11 @@ type addonsData struct {
 	Folder string
 }
 
+// Update returns the pending update for an add-on, if any.
+func (d addonsData) Update(ad addons.Addon) string {
+	return d.AddonUpdates[ad.Base()].Version
+}
+
 type searchData struct {
 	ID   string
 	Hits []addons.Hit
@@ -69,6 +74,7 @@ func (a *App) addonsInstall(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
 	defer cancel()
 	names, err := addons.Install(ctx, sv.Type, sv.Version, r.FormValue("project"), inst.Dir(), inst.Logf)
+	a.Updates.Recheck(sv.ID)
 	switch {
 	case err != nil:
 		setError(w, "Install failed: "+err.Error())
@@ -104,4 +110,48 @@ func (a *App) addonsRemove(w http.ResponseWriter, r *http.Request) {
 		setFlash(w, "Removed."+restartHint(inst))
 	}
 	back(w, r, "/servers/"+sv.ID+"/addons")
+}
+
+// addonsUpdate installs pending updates found by the update check: one
+// add-on, or all of them when no file is given.
+func (a *App) addonsUpdate(w http.ResponseWriter, r *http.Request) {
+	sv, inst, ok := a.load(w, r)
+	if !ok {
+		return
+	}
+	to := "/servers/" + sv.ID + "/addons"
+	if !addons.Supported(sv.Type) {
+		http.NotFound(w, r)
+		return
+	}
+	list, _ := addons.List(sv.Type, inst.Dir())
+	pending := a.Updates.Get(sv.ID).Addons
+	only := r.FormValue("file")
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
+	defer cancel()
+	var done []string
+	var failed []string
+	for _, ad := range list {
+		u, ok := pending[ad.Base()]
+		if !ok || (only != "" && ad.File != only) {
+			continue
+		}
+		title, err := addons.Apply(ctx, sv.Type, inst.Dir(), ad.File, u, inst.Logf)
+		if err != nil {
+			inst.Logf("Could not update %s: %v", ad.Title, err)
+			failed = append(failed, ad.Title)
+			continue
+		}
+		a.Updates.ForgetAddon(sv.ID, ad.Base())
+		done = append(done, title)
+	}
+	switch {
+	case len(failed) > 0:
+		setError(w, "Couldn't update "+strings.Join(failed, ", ")+". Details are in the console.")
+	case len(done) == 0:
+		setError(w, "No updates to install. Try checking again.")
+	default:
+		setFlash(w, fmt.Sprintf("Updated %s.%s", strings.Join(done, ", "), restartHint(inst)))
+	}
+	back(w, r, to)
 }

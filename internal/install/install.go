@@ -101,6 +101,45 @@ func Install(ctx context.Context, dataDir, typ, version, dir string, logf Logf) 
 	return res, nil
 }
 
+// LatestBuild returns the newest build that reinstalling sv's current
+// version would get: the Paper build number, the Fabric loader version, or the
+// Bedrock release. It returns "" for Vanilla, which has no builds.
+func LatestBuild(ctx context.Context, sv store.Server) (string, error) {
+	switch sv.Type {
+	case store.TypePaper:
+		b, err := latestPaperBuild(ctx, sv.Version)
+		if err != nil {
+			return "", err
+		}
+		return strconv.Itoa(b.ID), nil
+	case store.TypeFabric:
+		return latestStable(ctx, "https://meta.fabricmc.net/v2/versions/loader")
+	case store.TypeBedrock:
+		_, v, err := bedrockDownload(ctx)
+		return v, err
+	}
+	return "", nil
+}
+
+// IsNewerBuild reports whether latest (from LatestBuild) is newer than what
+// sv has installed.
+func IsNewerBuild(sv store.Server, latest string) bool {
+	if latest == "" || latest == "unknown" {
+		return false
+	}
+	current := sv.Build
+	if sv.Type == store.TypeBedrock {
+		current = sv.Version
+		if current == "unknown" || current == "latest" {
+			return false
+		}
+	}
+	if current == "" {
+		return false
+	}
+	return CompareVersions(latest, current) > 0
+}
+
 // --- Mojang / Vanilla ---
 
 type manifest struct {
@@ -207,18 +246,26 @@ func paperVersions(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
+type paperBuild struct {
+	ID        int `json:"id"`
+	Downloads map[string]struct {
+		Name      string `json:"name"`
+		URL       string `json:"url"`
+		Checksums struct {
+			SHA256 string `json:"sha256"`
+		} `json:"checksums"`
+	} `json:"downloads"`
+}
+
+func latestPaperBuild(ctx context.Context, version string) (paperBuild, error) {
+	var b paperBuild
+	err := GetJSON(ctx, fmt.Sprintf("https://fill.papermc.io/v3/projects/paper/versions/%s/builds/latest", version), &b)
+	return b, err
+}
+
 func installPaper(ctx context.Context, version, dir string, logf Logf) (Result, error) {
-	var b struct {
-		ID        int `json:"id"`
-		Downloads map[string]struct {
-			Name      string `json:"name"`
-			URL       string `json:"url"`
-			Checksums struct {
-				SHA256 string `json:"sha256"`
-			} `json:"checksums"`
-		} `json:"downloads"`
-	}
-	if err := GetJSON(ctx, fmt.Sprintf("https://fill.papermc.io/v3/projects/paper/versions/%s/builds/latest", version), &b); err != nil {
+	b, err := latestPaperBuild(ctx, version)
+	if err != nil {
 		return Result{}, err
 	}
 	d, ok := b.Downloads["server:default"]
@@ -301,7 +348,7 @@ var bedrockKeep = map[string]bool{
 	"permissions.json":  true,
 }
 
-func installBedrock(ctx context.Context, dir string, logf Logf) (Result, error) {
+func bedrockDownload(ctx context.Context) (url, version string, err error) {
 	var links struct {
 		Result struct {
 			Links []struct {
@@ -311,20 +358,23 @@ func installBedrock(ctx context.Context, dir string, logf Logf) (Result, error) 
 		} `json:"result"`
 	}
 	if err := GetJSON(ctx, "https://net-secondary.web.minecraft-services.net/api/v1.0/download/links", &links); err != nil {
-		return Result{}, err
+		return "", "", err
 	}
-	var url string
 	for _, l := range links.Result.Links {
 		if l.DownloadType == "serverBedrockLinux" {
 			url = l.DownloadURL
 		}
 	}
 	if url == "" {
-		return Result{}, fmt.Errorf("no Bedrock server download found")
+		return "", "", fmt.Errorf("no Bedrock server download found")
 	}
-	version := "unknown"
-	if m := bedrockVersionRe.FindStringSubmatch(url); m != nil {
-		version = m[1]
+	return url, BedrockZipVersion(url), nil
+}
+
+func installBedrock(ctx context.Context, dir string, logf Logf) (Result, error) {
+	url, version, err := bedrockDownload(ctx)
+	if err != nil {
+		return Result{}, err
 	}
 	logf("Downloading Bedrock server %s", version)
 	zip := filepath.Join(dir, "bedrock-server.zip")

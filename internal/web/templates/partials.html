@@ -37,6 +37,7 @@
   <div class="title">
     {{template "server-avatar" .}}
     <a href="/servers/{{.ID}}">{{.Name}}</a>
+    {{if or .NewBuild .AddonUpdates}}<span class="tag update">Update available</span>{{end}}
     {{template "badge" .}}
   </div>
   <dl>
@@ -63,6 +64,8 @@
       {{if .Address}}<span>·</span><span class="mono">{{.Address}}</span>
       <button class="btn ghost small" type="button" data-copy="{{.Address}}">Copy</button>{{end}}
       {{if and .Status.Online (eq .Status.State "running")}}<span>· up {{since .Status.StartedAt}}</span>{{end}}
+      {{if .NewBuild}}<a class="tag update" href="/servers/{{.ID}}/settings?s=version">Update available</a>{{end}}
+      {{if .AddonUpdates}}<a class="tag update" href="/servers/{{.ID}}/addons">{{len .AddonUpdates}} {{.AddonNoun}} update{{if gt (len .AddonUpdates) 1}}s{{end}}</a>{{end}}
     </div>
   </div>
   <div class="actions">{{template "power-buttons" .}}</div>

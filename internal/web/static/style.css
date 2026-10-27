@@ -184,6 +184,8 @@ input[type=color] { width: 3rem; height: 2.3rem; padding: 0; border: 1px solid v
 .badge.crashed { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
 .badge.crashed::before { background: var(--bad); }
 .tag { font-size: .78rem; padding: .1rem .5rem; border-radius: 6px; background: var(--surface-2); color: var(--muted); font-weight: 550; }
+.tag.update { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); white-space: nowrap; }
+a.tag.update:hover { text-decoration: underline; }
 
 /* Server cards */
 .server-card { display: flex; flex-direction: column; gap: .8rem; }

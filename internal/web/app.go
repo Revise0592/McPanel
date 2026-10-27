@@ -24,6 +24,7 @@ import (
 	"github.com/Revise0592/McPanel/internal/importer"
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
+	"github.com/Revise0592/McPanel/internal/updates"
 )
 
 //go:embed templates/*.html
@@ -36,6 +37,7 @@ var staticFS embed.FS
 type App struct {
 	Store     *store.Store
 	Mgr       *mc.Manager
+	Updates   *updates.Checker
 	SetupCode string
 
 	sessions *auth.Sessions
@@ -51,6 +53,7 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 	a := &App{
 		Store:     st,
 		Mgr:       mgr,
+		Updates:   updates.New(st, mgr),
 		SetupCode: setupCode,
 		limiter:   auth.NewLimiter(),
 		pages:     map[string]*template.Template{},
@@ -163,6 +166,7 @@ func (a *App) Handler() http.Handler {
 	p("POST /servers/{id}/settings/server", a.saveServerSettings)
 	p("POST /servers/{id}/settings/raw", a.saveRawProperties)
 	p("POST /servers/{id}/settings/version", a.changeVersion)
+	p("POST /servers/{id}/updates/check", a.checkUpdates)
 	p("POST /servers/{id}/settings/bedrock-zip", a.uploadBedrockZip)
 	p("GET /servers/{id}/icon", a.serverIcon)
 	p("POST /servers/{id}/settings/icon", a.uploadServerIcon)
@@ -190,6 +194,7 @@ func (a *App) Handler() http.Handler {
 	p("GET /servers/{id}/addons", a.addonsPage)
 	p("GET /servers/{id}/addons/search", a.addonsSearch)
 	p("POST /servers/{id}/addons/install", a.addonsInstall)
+	p("POST /servers/{id}/addons/update", a.addonsUpdate)
 	p("POST /servers/{id}/addons/toggle", a.addonsToggle)
 	p("POST /servers/{id}/addons/remove", a.addonsRemove)
 

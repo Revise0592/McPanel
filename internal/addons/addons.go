@@ -4,9 +4,12 @@ package addons
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -201,9 +204,19 @@ func installOne(ctx context.Context, typ, mcVersion, projectID, serverDir string
 	if err != nil {
 		return "", v, err
 	}
+	title, err := installVersion(ctx, typ, v, "", serverDir, m, logf)
+	return title, v, err
+}
+
+// installVersion downloads v and removes older files from the same project,
+// plus replaces (another file being updated that McPanel didn't install).
+func installVersion(ctx context.Context, typ string, v version, replaces, serverDir string, m map[string]meta, logf install.Logf) (string, error) {
+	if len(v.Files) == 0 {
+		return "", errors.New("release has no files")
+	}
 	var p project
 	if err := install.GetJSON(ctx, fmt.Sprintf("%s/project/%s", api, url.PathEscape(v.ProjectID)), &p); err != nil {
-		return "", v, err
+		return "", err
 	}
 	f := v.Files[0]
 	for _, ff := range v.Files {
@@ -213,9 +226,13 @@ func installOne(ctx context.Context, typ, mcVersion, projectID, serverDir string
 	}
 	name := filepath.Base(f.Filename)
 	if !strings.HasSuffix(name, ".jar") || strings.ContainsAny(name, `/\`) {
-		return "", v, fmt.Errorf("unexpected file %q", f.Filename)
+		return "", fmt.Errorf("unexpected file %q", f.Filename)
 	}
 	dir := filepath.Join(serverDir, folder(typ))
+	logf("Installing %s %s", p.Title, v.VersionNumber)
+	if err := install.Download(ctx, f.URL, filepath.Join(dir, name), install.Checksum{Algo: "sha512", Hex: f.Hashes.SHA512}, nil); err != nil {
+		return "", err
+	}
 	// Replace older files from the same project.
 	for file, mt := range m {
 		if mt.ProjectID == v.ProjectID && file != name {
@@ -224,13 +241,112 @@ func installOne(ctx context.Context, typ, mcVersion, projectID, serverDir string
 			delete(m, file)
 		}
 	}
-	logf("Installing %s %s", p.Title, v.VersionNumber)
-	if err := install.Download(ctx, f.URL, filepath.Join(dir, name), install.Checksum{Algo: "sha512", Hex: f.Hashes.SHA512}, nil); err != nil {
-		return "", v, err
+	if replaces != "" && strings.TrimSuffix(replaces, ".disabled") != name {
+		os.Remove(filepath.Join(dir, replaces))
+		delete(m, strings.TrimSuffix(replaces, ".disabled"))
 	}
 	m[name] = meta{ProjectID: v.ProjectID, Title: p.Title, Version: v.VersionNumber}
-	return p.Title, v, nil
+	return p.Title, nil
 }
+
+// Update is a newer release of an installed add-on.
+type Update struct {
+	Version string
+	v       version
+}
+
+func fileSHA512(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha512.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// CheckUpdates asks Modrinth for newer releases of the installed add-ons,
+// matching each jar by its hash, so files added by hand are checked too if
+// they came from Modrinth. The result is keyed by Addon.Base.
+func CheckUpdates(ctx context.Context, typ, mcVersion, serverDir string) (map[string]Update, error) {
+	list, err := List(typ, serverDir)
+	if err != nil || len(list) == 0 {
+		return nil, err
+	}
+	dir := filepath.Join(serverDir, folder(typ))
+	byHash := map[string]string{}
+	var hashes []string
+	for _, a := range list {
+		h, err := fileSHA512(filepath.Join(dir, a.File))
+		if err != nil {
+			continue
+		}
+		byHash[h] = a.File
+		hashes = append(hashes, h)
+	}
+	if len(hashes) == 0 {
+		return nil, nil
+	}
+	body := map[string]any{
+		"hashes":        hashes,
+		"algorithm":     "sha512",
+		"loaders":       loaders(typ),
+		"game_versions": []string{mcVersion},
+	}
+	var res map[string]version
+	if err := install.PostJSON(ctx, api+"/version_files/update", body, &res); err != nil {
+		return nil, err
+	}
+	out := map[string]Update{}
+	for h, v := range res {
+		file, ok := byHash[h]
+		if !ok {
+			continue
+		}
+		same := false
+		for _, f := range v.Files {
+			if f.Hashes.SHA512 == h {
+				same = true
+			}
+		}
+		if !same && len(v.Files) > 0 {
+			out[strings.TrimSuffix(file, ".disabled")] = Update{Version: v.VersionNumber, v: v}
+		}
+	}
+	return out, nil
+}
+
+// Apply installs u in place of file, keeping it turned off if it was off.
+func Apply(ctx context.Context, typ, serverDir, file string, u Update, logf install.Logf) (string, error) {
+	if err := checkFile(file); err != nil {
+		return "", err
+	}
+	metaMu.Lock()
+	defer metaMu.Unlock()
+	m := loadMeta(serverDir)
+	title, err := installVersion(ctx, typ, u.v, file, serverDir, m, logf)
+	if err != nil {
+		return "", err
+	}
+	if err := saveMeta(serverDir, m); err != nil {
+		return title, err
+	}
+	if strings.HasSuffix(file, ".disabled") {
+		dir := filepath.Join(serverDir, folder(typ))
+		for name, mt := range m {
+			if mt.ProjectID == u.v.ProjectID {
+				os.Rename(filepath.Join(dir, name), filepath.Join(dir, name+".disabled"))
+			}
+		}
+	}
+	return title, nil
+}
+
+// Base is the file name without the ".disabled" suffix.
+func (a Addon) Base() string { return strings.TrimSuffix(a.File, ".disabled") }
 
 // List returns installed add-ons.
 func List(typ, serverDir string) ([]Addon, error) {

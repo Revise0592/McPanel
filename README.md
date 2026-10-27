@@ -16,6 +16,7 @@ configure and back up your servers from one page.
 - Backups: manual or scheduled, while the server runs; kept when a server
   is deleted
 - Plugins and mods from Modrinth, filtered to your version
+- Shows when a newer server build or plugin/mod release is out, with one-click updates
 - Import a server or world from a zip
 - Restart on crash, start with the panel
 - Two-factor sign-in

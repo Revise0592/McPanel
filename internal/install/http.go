@@ -1,6 +1,7 @@
 package install
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha1"
 	"crypto/sha256"
@@ -50,6 +51,31 @@ func GetJSON(ctx context.Context, url string, v any) error {
 		return err
 	}
 	defer resp.Body.Close()
+	return json.NewDecoder(resp.Body).Decode(v)
+}
+
+// PostJSON sends body as JSON to url and decodes the JSON reply into v.
+func PostJSON(ctx context.Context, url string, body, v any) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	b, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("POST %s: %s", url, resp.Status)
+	}
 	return json.NewDecoder(resp.Body).Decode(v)
 }
 
