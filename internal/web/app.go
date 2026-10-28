@@ -20,9 +20,11 @@ import (
 
 	"github.com/Revise0592/McPanel/internal/auth"
 	"github.com/Revise0592/McPanel/internal/backup"
+	"github.com/Revise0592/McPanel/internal/files"
 	"github.com/Revise0592/McPanel/internal/heads"
 	"github.com/Revise0592/McPanel/internal/importer"
 	"github.com/Revise0592/McPanel/internal/mc"
+	"github.com/Revise0592/McPanel/internal/schedule"
 	"github.com/Revise0592/McPanel/internal/store"
 	"github.com/Revise0592/McPanel/internal/updates"
 )
@@ -38,6 +40,7 @@ type App struct {
 	Store     *store.Store
 	Mgr       *mc.Manager
 	Updates   *updates.Checker
+	Tasks     *schedule.Scheduler
 	SetupCode string
 
 	sessions *auth.Sessions
@@ -54,6 +57,7 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 		Store:     st,
 		Mgr:       mgr,
 		Updates:   updates.New(st, mgr),
+		Tasks:     schedule.New(st, mgr),
 		SetupCode: setupCode,
 		limiter:   auth.NewLimiter(),
 		pages:     map[string]*template.Template{},
@@ -80,9 +84,12 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 		"isJava":    store.IsJava,
 		"size":      backup.HumanSize,
 		"ago":       ago,
-		"since":     since,
-		"date":      func(t time.Time) string { return t.Format("2 Jan 2006, 15:04") },
-		"lower":     strings.ToLower,
+		// The extra minute stops "in 6 hours" showing as "in 5 hours" a
+		// moment after the task is added.
+		"until": func(t time.Time) string { return span(time.Until(t) + time.Minute) },
+		"since": since,
+		"date":  func(t time.Time) string { return t.Format("2 Jan 2006, 15:04") },
+		"lower": strings.ToLower,
 		"title": func(s string) string {
 			if s == "" {
 				return s
@@ -90,6 +97,7 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 			return strings.ToUpper(s[:1]) + s[1:]
 		},
 		"pathEsc":    url.PathEscape,
+		"editable":   files.Editable,
 		"headURL":    headURL,
 		"hasIcon":    func() bool { return hasIcon },
 		"logo":       a.logoURL,
@@ -185,11 +193,17 @@ func (a *App) Handler() http.Handler {
 	p("POST /backups/deleted/{id}/delete", a.deleteOrphanFolder)
 	p("POST /backups/deleted/{id}/{name}/delete", a.deleteOrphan)
 
+	p("GET /servers/{id}/schedule", a.schedulePage)
+	p("POST /servers/{id}/schedule", a.addTask)
+	p("POST /servers/{id}/schedule/delete", a.deleteTask)
+
 	p("GET /servers/{id}/files", a.filesPage)
 	p("GET /servers/{id}/files/download", a.downloadFile)
 	p("POST /servers/{id}/files/upload", a.uploadFiles)
 	p("POST /servers/{id}/files/mkdir", a.makeFolder)
 	p("POST /servers/{id}/files/delete", a.deleteFile)
+	p("GET /servers/{id}/files/edit", a.editFilePage)
+	p("POST /servers/{id}/files/edit", a.saveFile)
 
 	p("GET /servers/{id}/addons", a.addonsPage)
 	p("GET /servers/{id}/addons/search", a.addonsSearch)
@@ -201,6 +215,8 @@ func (a *App) Handler() http.Handler {
 	p("GET /settings", a.panelSettingsPage("appearance"))
 	p("GET /settings/account", a.panelSettingsPage("account"))
 	p("GET /settings/security", a.panelSettingsPage("security"))
+	p("GET /settings/backups", a.panelSettingsPage("backups"))
+	p("POST /settings/backups", a.saveBackupCopyDir)
 	p("POST /settings", a.savePanelSettings)
 	p("POST /settings/logo", a.uploadLogo)
 	p("POST /settings/logo/remove", a.removeLogo)
@@ -384,8 +400,9 @@ func ago(t time.Time) string {
 	return since(t) + " ago"
 }
 
-func since(t time.Time) string {
-	d := time.Since(t)
+func since(t time.Time) string { return span(time.Since(t)) }
+
+func span(d time.Duration) string {
 	switch {
 	case d < time.Minute:
 		return "less than a minute"

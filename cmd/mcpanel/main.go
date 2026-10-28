@@ -103,6 +103,7 @@ func main() {
 	mgr.StartAutostart()
 	go backup.RunScheduler(ctx, st, mgr)
 	go app.Updates.Run(ctx)
+	go app.Tasks.Run(ctx)
 
 	<-ctx.Done()
 	stop()

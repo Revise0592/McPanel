@@ -192,3 +192,57 @@ func (a *App) deleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 	back(w, r, filesURL(sv.ID, parent))
 }
+
+type editData struct {
+	serverView
+	Path   string
+	Name   string
+	Folder string
+	Text   string
+}
+
+func (a *App) editFilePage(w http.ResponseWriter, r *http.Request) {
+	sv, inst, ok := a.load(w, r)
+	if !ok {
+		return
+	}
+	rel := files.Clean(r.FormValue("path"))
+	folder := parentOf(rel)
+	text, err := files.ReadText(inst.Dir(), rel)
+	if err != nil {
+		if errors.Is(err, files.ErrNotText) {
+			setError(w, path.Base(rel)+" can't be edited here. Download it instead.")
+		} else {
+			setError(w, "That file doesn't exist.")
+		}
+		back(w, r, filesURL(sv.ID, folder))
+		return
+	}
+	d := editData{serverView: a.view(r, sv), Path: rel, Name: path.Base(rel), Folder: folder, Text: text}
+	d.Tab = "files"
+	a.render(w, r, "files_edit", d.Name, "servers", d)
+}
+
+func (a *App) saveFile(w http.ResponseWriter, r *http.Request) {
+	sv, inst, ok := a.load(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 3*files.MaxEdit)
+	rel := files.Clean(r.FormValue("path"))
+	to := "/servers/" + sv.ID + "/files/edit?path=" + url.QueryEscape(rel)
+	if err := files.WriteText(inst.Dir(), rel, r.FormValue("text")); err != nil {
+		setError(w, "Couldn't save "+path.Base(rel)+": "+err.Error())
+	} else {
+		setFlash(w, path.Base(rel)+" saved."+restartHint(inst))
+	}
+	back(w, r, to)
+}
+
+// parentOf is the folder holding rel, "" for the server folder itself.
+func parentOf(rel string) string {
+	if p := path.Dir(rel); p != "." {
+		return p
+	}
+	return ""
+}

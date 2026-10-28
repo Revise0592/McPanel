@@ -21,8 +21,11 @@
           <td>{{size .Size}}</td>
           <td class="actions">
             <a class="btn small ghost" href="/servers/{{$v.ID}}/backups/{{pathEsc .Name}}">Download</a>
-            <form class="inline" method="post" action="/servers/{{$v.ID}}/backups/{{pathEsc .Name}}/restore" data-confirm="Restore this backup? The server will stop, and the current world is backed up first.">
+            <form class="inline" method="post" action="/servers/{{$v.ID}}/backups/{{pathEsc .Name}}/restore" data-confirm="Restore the whole server from this backup? The server will stop, and its current state is backed up first.">
               <button class="btn small">Restore</button></form>
+            <form class="inline" method="post" action="/servers/{{$v.ID}}/backups/{{pathEsc .Name}}/restore" data-confirm="Restore just the world from this backup? Plugins and settings stay as they are. The server will stop, and its current state is backed up first.">
+              <input type="hidden" name="what" value="world">
+              <button class="btn small ghost" title="Replace only the world, keeping plugins, mods and settings">World only</button></form>
             <form class="inline" method="post" action="/servers/{{$v.ID}}/backups/{{pathEsc .Name}}/delete" data-confirm="Delete this backup for good?">
               <button class="btn small ghost danger">Delete</button></form>
           </td>
@@ -32,6 +35,9 @@
     </table>
     </div>
     {{else}}<p class="muted">No backups yet.</p>{{end}}
+    <p class="muted small">{{if $v.Backups}}{{len $v.Backups}} backup{{if gt (len $v.Backups) 1}}s{{end}}, {{size $v.Total}} in all.{{end}}
+      {{if ge $v.Free 0}}{{size $v.Free}} free on this disk.{{end}}
+      {{if $v.CopyDir}}Copies go to <code>{{$v.CopyDir}}</code>.{{else}}<a href="/settings/backups">Keep a copy in a second folder</a>.{{end}}</p>
   </div>
 
   <form class="card" method="post" action="/servers/{{$v.ID}}/backups/schedule">

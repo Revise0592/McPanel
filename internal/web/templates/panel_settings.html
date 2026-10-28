@@ -6,6 +6,7 @@
     <a href="/settings" {{if eq $d.Section "appearance"}}class="active" aria-current="page"{{end}}>Appearance</a>
     <a href="/settings/account" {{if eq $d.Section "account"}}class="active" aria-current="page"{{end}}>Account</a>
     <a href="/settings/security" {{if eq $d.Section "security"}}class="active" aria-current="page"{{end}}>Security</a>
+    <a href="/settings/backups" {{if eq $d.Section "backups"}}class="active" aria-current="page"{{end}}>Backups</a>
   </nav>
 
   <div class="stack">
@@ -89,6 +90,18 @@
         </div>
       </div>
       <div class="form-actions"><button class="btn">Change password</button></div>
+    </form>
+
+  {{else if eq $d.Section "backups"}}
+    <form class="card" method="post" action="/settings/backups">
+      <h2>Copy backups to a second folder</h2>
+      <p class="desc">Every new backup is also copied here, so one failed disk doesn't take your backups with it. Use a folder on another disk or a mounted network share.</p>
+      <div class="field">
+        <label for="copyDir">Folder</label>
+        <input type="text" id="copyDir" name="copyDir" value="{{.Panel.BackupCopyDir}}" class="mono" placeholder="e.g. /mnt/nas/mcpanel-backups">
+        <div class="help">Leave blank to turn copies off. Each server gets its own folder inside. Copies of old scheduled backups are deleted along with them; copies of backups you delete yourself are kept. In Docker, mount the folder into the container first.</div>
+      </div>
+      <div class="form-actions"><button class="btn primary">Save</button></div>
     </form>
 
   {{else}}

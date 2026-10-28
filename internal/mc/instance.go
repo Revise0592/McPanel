@@ -74,6 +74,14 @@ type Instance struct {
 	players     map[string]time.Time
 	rejected    []string
 	lastPlayers time.Time
+
+	// Resource use, see Usage.
+	paper    bool
+	cpuPrev  cpuSample
+	cpuLast  float64
+	tps      float64
+	tpsAt    time.Time
+	tpsAsked time.Time
 }
 
 func newInstance(m *Manager, id string) *Instance {
@@ -82,6 +90,9 @@ func newInstance(m *Manager, id string) *Instance {
 
 // Dir is the server's working directory.
 func (i *Instance) Dir() string { return filepath.Join(i.m.dataDir, "servers", i.ID) }
+
+// Manager is the manager that owns the instance.
+func (i *Instance) Manager() *Manager { return i.m }
 
 // Def returns the current saved definition.
 func (i *Instance) Def() (store.Server, error) { return i.m.store.Server(i.ID) }
@@ -147,6 +158,9 @@ func (i *Instance) addLine(line string) {
 	line = ansiCodes.ReplaceAllString(line, "")
 	i.mu.Lock()
 	defer i.mu.Unlock()
+	if i.takeTPSLocked(line) {
+		return
+	}
 	i.lines = append(i.lines, line)
 	if len(i.lines) > logLines {
 		i.lines = slices.Clone(i.lines[len(i.lines)-logLines:])
@@ -323,6 +337,7 @@ func (i *Instance) run(def store.Server) {
 	done := make(chan struct{})
 	i.mu.Lock()
 	i.cmd, i.stdin, i.done, i.startedAt = cmd, stdin, done, time.Now()
+	i.paper, i.cpuPrev, i.tpsAt, i.tpsAsked = isPaper(def.Type), cpuSample{}, time.Time{}, time.Time{}
 	i.mu.Unlock()
 
 	go func() {

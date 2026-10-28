@@ -1,0 +1,60 @@
+{{define "content"}}
+{{$v := .Data}}
+{{template "server-header" $v}}
+{{template "server-tabs" $v}}
+<div class="split">
+  <div class="card">
+    <h2>Scheduled tasks</h2>
+    {{if $v.Rows}}
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Do</th><th>When</th><th>Next</th><th></th></tr></thead>
+      <tbody>
+      {{range $v.Rows}}
+        <tr>
+          <td>{{if eq .Action "restart"}}Restart{{else}}Run <code>{{.Command}}</code>{{end}}</td>
+          <td>{{if .At}}Every day at {{.At}}{{else if eq .EveryHours 1}}Every hour{{else}}Every {{.EveryHours}} hours{{end}}</td>
+          <td>{{date .Next}}<div class="muted small">in {{until .Next}}</div></td>
+          <td class="actions">
+            <form class="inline" method="post" action="/servers/{{$v.ID}}/schedule/delete" data-confirm="Remove this task?">
+              <input type="hidden" name="task" value="{{.ID}}">
+              <button class="btn small ghost danger">Remove</button></form>
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+    {{else}}<p class="muted">Nothing scheduled.</p>{{end}}
+    <p class="muted small">Tasks only run while the server is online. Players get a message 5 minutes and 1 minute before a restart.</p>
+  </div>
+
+  <form class="card" method="post" action="/servers/{{$v.ID}}/schedule" data-show-if-form>
+    <h2>Add a task</h2>
+    <div class="field">
+      <label for="action">Do</label>
+      <select id="action" name="action">
+        <option value="restart">Restart the server</option>
+        <option value="command">Run a console command</option>
+      </select>
+    </div>
+    <div class="field" data-show-if="action=command">
+      <label for="command">Command</label>
+      <input type="text" id="command" name="command" class="mono" maxlength="500" placeholder="e.g. save-all">
+    </div>
+    <div class="field">
+      <label for="when">When</label>
+      <select id="when" name="when">
+        <option value="daily">Every day at…</option>
+        {{range $v.Hours}}<option value="{{.}}">{{if eq . 1}}Every hour{{else}}Every {{.}} hours{{end}}</option>{{end}}
+      </select>
+    </div>
+    <div class="field" data-show-if="when=daily">
+      <label for="at">Time</label>
+      <input type="time" id="at" name="at" value="05:00">
+      <div class="help">The panel's clock says {{$v.Clock}}.</div>
+    </div>
+    <div class="form-actions"><button class="btn primary">Add</button></div>
+  </form>
+</div>
+{{end}}

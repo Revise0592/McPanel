@@ -6,16 +6,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Revise0592/McPanel/internal/archive"
 	"github.com/Revise0592/McPanel/internal/mc"
+	"github.com/Revise0592/McPanel/internal/props"
 	"github.com/Revise0592/McPanel/internal/store"
 )
 
@@ -117,7 +121,21 @@ var saveDone = func(l string) bool {
 
 // Create backs up a server. label is a short tag such as "auto" or "manual".
 // A running server keeps running; saving is paused while files are copied.
+// If the panel has a copy folder, the backup is then copied there too.
 func Create(dataDir string, inst *mc.Instance, label string) (Backup, error) {
+	b, err := create(dataDir, inst, label)
+	if err != nil {
+		return b, err
+	}
+	if to := inst.Manager().Settings().BackupCopyDir; to != "" {
+		if err := copyOut(dataDir, inst.ID, b.Name, to); err != nil {
+			inst.Logf("Couldn't copy the backup to %s: %v", to, err)
+		}
+	}
+	return b, nil
+}
+
+func create(dataDir string, inst *mc.Instance, label string) (Backup, error) {
 	def, err := inst.Def()
 	if err != nil {
 		return Backup{}, err
@@ -190,9 +208,24 @@ func Create(dataDir string, inst *mc.Instance, label string) (Backup, error) {
 	return Backup{Name: name, Label: label, Size: info.Size(), Created: now}, nil
 }
 
-// Restore replaces the server's files with a backup. The server is stopped
-// first, and a safety backup of the current state is made.
-func Restore(dataDir string, inst *mc.Instance, name string) error {
+// WorldFolders are the top-level folders that hold a server's world: the
+// level-name folder and its Nether and End for Java, "worlds" for Bedrock.
+func WorldFolders(typ, serverDir string) []string {
+	if typ == store.TypeBedrock {
+		return []string{"worlds"}
+	}
+	world := "world"
+	if f, err := props.Load(filepath.Join(serverDir, "server.properties")); err == nil {
+		world = f.GetOr("level-name", world)
+	}
+	return []string{world, world + "_nether", world + "_the_end"}
+}
+
+// Restore replaces the server's files with a backup. With worldOnly, just
+// the world folders are replaced and plugins, configs and the rest are left
+// alone. The server is stopped first, and a safety backup of the current
+// state is made.
+func Restore(dataDir string, inst *mc.Instance, name string, worldOnly bool) error {
 	src, err := Path(dataDir, inst.ID, name)
 	if err != nil {
 		return err
@@ -218,6 +251,17 @@ func Restore(dataDir string, inst *mc.Instance, name string) error {
 	if err != nil {
 		return err
 	}
+	if worldOnly {
+		def, err := inst.Def()
+		if err != nil {
+			return err
+		}
+		worlds := WorldFolders(def.Type, inst.Dir())
+		tops = slices.DeleteFunc(tops, func(t string) bool { return !slices.Contains(worlds, t) })
+		if len(tops) == 0 {
+			return errors.New("this backup has no world folder")
+		}
+	}
 	tmp := filepath.Join(inst.Dir(), ".mcpanel-restore")
 	os.RemoveAll(tmp)
 	if err := archive.ExtractTarGz(src, tmp, 0); err != nil {
@@ -234,7 +278,11 @@ func Restore(dataDir string, inst *mc.Instance, name string) error {
 		}
 	}
 	os.RemoveAll(tmp)
-	inst.Logf("Restored backup from %s", strings.TrimSuffix(name, ".tar.gz"))
+	if worldOnly {
+		inst.Logf("Restored the world from backup %s", strings.TrimSuffix(name, ".tar.gz"))
+	} else {
+		inst.Logf("Restored backup from %s", strings.TrimSuffix(name, ".tar.gz"))
+	}
 	inst.EndTask()
 	if wasOnline {
 		return inst.Start()
@@ -332,8 +380,9 @@ func DeleteFolder(dataDir, id string) error {
 	return os.RemoveAll(Dir(dataDir, id))
 }
 
-// prune deletes the oldest automatic backups beyond keep.
-func prune(dataDir, id string, keep int) {
+// prune deletes the oldest automatic backups beyond keep, along with their
+// copies in copyDir if there is one.
+func prune(dataDir, copyDir, id string, keep int) {
 	if keep <= 0 {
 		return
 	}
@@ -349,6 +398,9 @@ func prune(dataDir, id string, keep int) {
 		n++
 		if n > keep {
 			os.Remove(filepath.Join(Dir(dataDir, id), b.Name))
+			if copyDir != "" {
+				os.Remove(filepath.Join(copyDir, id, b.Name))
+			}
 		}
 	}
 }
@@ -390,9 +442,73 @@ func RunScheduler(ctx context.Context, st *store.Store, m *mc.Manager) {
 				log.Printf("backup %s: %v", sv.Name, err)
 				continue
 			}
-			prune(m.DataDir(), sv.ID, sv.BackupKeep)
+			prune(m.DataDir(), st.Settings().BackupCopyDir, sv.ID, sv.BackupKeep)
 		}
 	}
+}
+
+// copyOut copies a backup into dir/<server ID>/, writing to a temporary
+// file first so an interrupted copy never looks like a finished backup.
+func copyOut(dataDir, id, name, dir string) error {
+	dst := filepath.Join(dir, id)
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return err
+	}
+	if b, err := os.ReadFile(filepath.Join(Dir(dataDir, id), infoFile)); err == nil {
+		os.WriteFile(filepath.Join(dst, infoFile), b, 0o644)
+	}
+	in, err := os.Open(filepath.Join(Dir(dataDir, id), name))
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	tmp := filepath.Join(dst, "."+name+".part")
+	out, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(out, in)
+	if cerr := out.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(tmp, filepath.Join(dst, name))
+	}
+	if err != nil {
+		os.Remove(tmp)
+	}
+	return err
+}
+
+// CheckCopyDir reports why dir can't hold backup copies, or nil if it can.
+func CheckCopyDir(dataDir, dir string) error {
+	if !filepath.IsAbs(dir) {
+		return errors.New("use a full path, starting with /")
+	}
+	dir = filepath.Clean(dir)
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return errors.New("that folder doesn't exist")
+	}
+	if rel, err := filepath.Rel(dataDir, dir); err == nil && !strings.HasPrefix(rel, "..") {
+		return errors.New("choose a folder outside McPanel's data folder")
+	}
+	f, err := os.CreateTemp(dir, ".mcpanel-check-*")
+	if err != nil {
+		return errors.New("McPanel can't write to that folder")
+	}
+	f.Close()
+	os.Remove(f.Name())
+	return nil
+}
+
+// FreeSpace is how many bytes are free on the disk holding dir.
+func FreeSpace(dir string) (int64, bool) {
+	var fs syscall.Statfs_t
+	if err := syscall.Statfs(dir, &fs); err != nil {
+		return 0, false
+	}
+	return int64(fs.Bavail) * int64(fs.Bsize), true
 }
 
 // HumanSize formats a byte count.

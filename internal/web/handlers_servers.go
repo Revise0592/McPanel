@@ -33,6 +33,8 @@ type serverView struct {
 	IconTime    int64 // server icon's change time; 0 when there is none
 	// NewBuild is a newer build of the installed version, if there is one.
 	NewBuild     string
+	Usage        mc.Usage
+	HasUsage     bool
 	AddonUpdates map[string]addons.Update
 	UpdateCheck  updates.Info
 }
@@ -41,6 +43,7 @@ func (a *App) view(r *http.Request, sv store.Server) serverView {
 	v := serverView{Server: sv, Port: a.Mgr.Port(sv)}
 	if inst, err := a.Mgr.Get(sv.ID); err == nil {
 		v.Status = inst.Status()
+		v.Usage, v.HasUsage = inst.Usage()
 		if fi, err := os.Stat(iconFile(inst)); err == nil {
 			v.IconTime = fi.ModTime().Unix()
 		}

@@ -97,3 +97,36 @@ func TestSymlinkEscape(t *testing.T) {
 		t.Fatal("target was removed")
 	}
 }
+
+func TestReadWriteText(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "plugins/X"), 0o755)
+	os.WriteFile(filepath.Join(dir, "plugins/X/config.yml"), []byte("a: 1\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "dos.txt"), []byte("a\r\nb\r\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "bin.json"), []byte("{\x00}"), 0o644)
+
+	if got, err := ReadText(dir, "plugins/X/config.yml"); err != nil || got != "a: 1\n" {
+		t.Fatalf("ReadText = %q, %v", got, err)
+	}
+	if _, err := ReadText(dir, "bin.json"); err != ErrNotText {
+		t.Errorf("binary file: err = %v", err)
+	}
+	if err := WriteText(dir, "plugins/X/config.yml", "a: 2\r\nb: 3\r\n"); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "plugins/X/config.yml")); string(b) != "a: 2\nb: 3\n" {
+		t.Errorf("LF file saved as %q", b)
+	}
+	if err := WriteText(dir, "dos.txt", "x\r\ny\r\n"); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, "dos.txt")); string(b) != "x\r\ny\r\n" {
+		t.Errorf("CRLF file saved as %q", b)
+	}
+	if err := WriteText(dir, "missing.txt", "x"); err == nil {
+		t.Error("WriteText made a new file")
+	}
+	if !Editable("server.properties", 10) || Editable("paper.jar", 10) || Editable("big.yml", MaxEdit+1) {
+		t.Error("Editable gave the wrong answer")
+	}
+}

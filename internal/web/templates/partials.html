@@ -43,12 +43,21 @@
     <dt>Type</dt><dd>{{typeLabel .Type}} {{.Version}}{{if or .NewBuild .AddonUpdates}} <span class="tag update">Update available</span>{{end}}</dd>
     <dt>Address</dt><dd>{{if .Address}}<span class="mono">{{.Address}}</span>{{else}}<span class="muted">Not set yet</span>{{end}}</dd>
     <dt>Players</dt><dd>{{if .Status.Online}}{{len .Status.Players}} online{{else}}<span class="muted">-</span>{{end}}</dd>
+    {{if .HasUsage}}<dt>Usage</dt><dd>{{template "usage" .}}</dd>{{end}}
   </dl>
   <div class="row">
     {{template "power-buttons" .}}
     <span class="spacer"></span>
     <a class="btn ghost small" href="/servers/{{.ID}}">Open</a>
   </div>
+</div>
+{{end}}
+
+{{define "usage"}}{{/* takes serverView with HasUsage */}}
+<div class="usage small">
+  <span title="Share of this machine's processor">CPU {{if lt .Usage.CPU 0.0}}…{{else}}{{printf "%.0f" .Usage.CPU}}%{{end}}</span>
+  <span title="Memory the server is using{{if .MemoryMB}}, out of the {{gb .MemoryMB}} it's allowed for the game{{end}}">Memory {{gb .Usage.MemoryMB}}</span>
+  {{if .Usage.TPS}}<span class="{{if lt .Usage.TPS 15.0}}bad{{else if lt .Usage.TPS 19.0}}warn{{end}}" title="Game ticks per second. 20 is full speed; lower means the server is lagging.">TPS {{printf "%.1f" .Usage.TPS}}</span>{{end}}
 </div>
 {{end}}
 
@@ -66,6 +75,7 @@
       {{if .NewBuild}}<a class="tag update" href="/servers/{{.ID}}/settings?s=version">Update available</a>{{end}}
       {{if .AddonUpdates}}<a class="tag update" href="/servers/{{.ID}}/addons">{{len .AddonUpdates}} {{.AddonNoun}} update{{if gt (len .AddonUpdates) 1}}s{{end}}</a>{{end}}
     </div>
+    {{if .HasUsage}}{{template "usage" .}}{{end}}
   </div>
   <div class="actions">{{template "power-buttons" .}}</div>
 </div>
@@ -77,6 +87,7 @@
   <a href="/servers/{{.ID}}/players" {{if eq .Tab "players"}}class="active"{{end}}>Players</a>
   {{if .AddonNoun}}<a href="/servers/{{.ID}}/addons" {{if eq .Tab "addons"}}class="active"{{end}}>{{title .AddonNoun}}s</a>{{end}}
   <a href="/servers/{{.ID}}/backups" {{if eq .Tab "backups"}}class="active"{{end}}>Backups</a>
+  <a href="/servers/{{.ID}}/schedule" {{if eq .Tab "schedule"}}class="active"{{end}}>Schedule</a>
   <a href="/servers/{{.ID}}/files" {{if eq .Tab "files"}}class="active"{{end}}>Files</a>
   <a href="/servers/{{.ID}}/settings" {{if eq .Tab "settings"}}class="active"{{end}}>Settings</a>
 </nav>

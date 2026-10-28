@@ -18,10 +18,11 @@
       {{if $v.Path}}<tr><td colspan="4"><a href="/servers/{{$v.ID}}/files{{if $v.Parent}}?path={{$v.Parent}}{{end}}">↑ Up a folder</a></td></tr>{{end}}
       {{range $v.Entries}}
         <tr>
-          <td class="name">{{if .Dir}}<a href="/servers/{{$v.ID}}/files?path={{.Path}}">{{.Name}}/</a>{{else}}{{.Name}}{{end}}</td>
+          <td class="name">{{if .Dir}}<a href="/servers/{{$v.ID}}/files?path={{.Path}}">{{.Name}}/</a>{{else if editable .Name .Size}}<a href="/servers/{{$v.ID}}/files/edit?path={{.Path}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td>
           <td>{{if not .Dir}}{{size .Size}}{{end}}</td>
           <td class="muted small" title="{{date .Modified}}">{{ago .Modified}}</td>
           <td class="actions">
+            {{if and (not .Dir) (editable .Name .Size)}}<a class="btn small ghost" href="/servers/{{$v.ID}}/files/edit?path={{.Path}}">Edit</a>{{end}}
             {{if not .Dir}}<a class="btn small ghost" href="/servers/{{$v.ID}}/files/download?path={{.Path}}">Download</a>{{end}}
             <form class="inline" method="post" action="/servers/{{$v.ID}}/files/delete" data-confirm="Delete {{.Name}}{{if .Dir}} and everything in it{{end}}? This can't be undone.">
               <input type="hidden" name="path" value="{{.Path}}">

@@ -53,6 +53,21 @@
     sync();
   }
 
+  // Fields marked data-show-if="name=value" only show while that field of
+  // their form has that value.
+  document.querySelectorAll("[data-show-if-form]").forEach(function (form) {
+    var deps = form.querySelectorAll("[data-show-if]");
+    var sync = function () {
+      deps.forEach(function (el) {
+        var kv = el.getAttribute("data-show-if").split("=");
+        var field = form.elements[kv[0]];
+        el.hidden = !field || field.value !== kv[1];
+      });
+    };
+    form.addEventListener("change", sync);
+    sync();
+  });
+
   // Live console.
   var box = document.getElementById("console");
   if (box) {
@@ -112,6 +127,27 @@
         if (pos < history.length - 1) { pos++; input.value = history[pos]; } else { pos = history.length; input.value = ""; }
         e.preventDefault();
       }
+    });
+  }
+
+  // File editor: Tab indents with spaces (YAML doesn't allow tabs), Ctrl+S
+  // saves, and leaving with unsaved changes asks first.
+  var editor = document.querySelector("[data-editor]");
+  if (editor) {
+    var saved = editor.value, leaving = false;
+    editor.addEventListener("keydown", function (e) {
+      if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        document.execCommand("insertText", false, "  ") || editor.setRangeText("  ", editor.selectionStart, editor.selectionEnd, "end");
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        editor.form.requestSubmit();
+      }
+    });
+    editor.form.addEventListener("submit", function () { leaving = true; });
+    window.addEventListener("beforeunload", function (e) {
+      if (!leaving && editor.value !== saved) e.preventDefault();
     });
   }
 

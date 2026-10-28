@@ -4,6 +4,7 @@
 package files
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // Entry is one item in a folder listing.
@@ -183,4 +185,65 @@ func Delete(dir, rel string) error {
 		return err
 	}
 	return root.RemoveAll(rel)
+}
+
+// MaxEdit is the largest file that can be edited in the browser.
+const MaxEdit = 2 << 20
+
+// ErrNotText is returned for files that can't be edited as text.
+var ErrNotText = errors.New("this file can't be edited here")
+
+// textExts are the file types offered for editing.
+var textExts = map[string]bool{
+	".txt": true, ".yml": true, ".yaml": true, ".json": true, ".json5": true,
+	".properties": true, ".toml": true, ".conf": true, ".cfg": true, ".ini": true,
+	".md": true, ".sk": true, ".mcfunction": true, ".mcmeta": true, ".csv": true,
+	".js": true, ".log": true, ".xml": true, ".lang": true,
+}
+
+// Editable reports whether a file looks like text that can be edited here,
+// going by its name and size.
+func Editable(name string, size int64) bool {
+	return size <= MaxEdit && textExts[strings.ToLower(path.Ext(name))]
+}
+
+// ReadText returns a text file's contents. Files that are too big or hold
+// binary data return ErrNotText.
+func ReadText(dir, rel string) (string, error) {
+	f, info, err := Open(dir, rel)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if info.Size() > MaxEdit {
+		return "", ErrNotText
+	}
+	b, err := io.ReadAll(io.LimitReader(f, MaxEdit+1))
+	if err != nil {
+		return "", err
+	}
+	if len(b) > MaxEdit || !utf8.Valid(b) || bytes.IndexByte(b, 0) >= 0 {
+		return "", ErrNotText
+	}
+	return string(b), nil
+}
+
+// WriteText replaces an existing text file. Browsers send line breaks as
+// CRLF, so they're turned back into LF unless the file already used CRLF.
+func WriteText(dir, rel, text string) error {
+	old, err := ReadText(dir, rel)
+	if err != nil {
+		return err
+	}
+	if len(text) > MaxEdit {
+		return errors.New("the text is too long to save here")
+	}
+	if !strings.Contains(old, "\r\n") {
+		text = strings.ReplaceAll(text, "\r\n", "\n")
+	}
+	parent := path.Dir(rel)
+	if parent == "." {
+		parent = ""
+	}
+	return Save(dir, parent, path.Base(rel), strings.NewReader(text))
 }

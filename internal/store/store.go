@@ -61,10 +61,29 @@ type Server struct {
 	BackupEveryHours int    `json:"backupEveryHours"`
 	BackupKeep       int    `json:"backupKeep"`
 	Installed        bool   `json:"installed"`
+	// Tasks are restarts and commands run on a timer.
+	Tasks []Task `json:"tasks,omitempty"`
 	// InitialProps are server.properties values chosen at creation, written
 	// once the server files exist.
 	InitialProps map[string]string `json:"initialProps,omitempty"`
 	CreatedAt    time.Time         `json:"createdAt"`
+}
+
+// Task actions.
+const (
+	TaskRestart = "restart"
+	TaskCommand = "command"
+)
+
+// Task is something done to a server on a timer, such as a nightly restart.
+// Exactly one of At and EveryHours is set.
+type Task struct {
+	ID      string `json:"id"`
+	Action  string `json:"action"`
+	Command string `json:"command,omitempty"`
+	// At is a time of day, "05:00", in the panel's time zone.
+	At         string `json:"at,omitempty"`
+	EveryHours int    `json:"everyHours,omitempty"`
 }
 
 // DefaultUsername is given to panels set up before usernames existed.
@@ -87,6 +106,9 @@ type Settings struct {
 	// BehindHTTPSProxy marks sign-in cookies Secure for panels reached
 	// through an HTTPS reverse proxy that talks plain HTTP to McPanel.
 	BehindHTTPSProxy bool `json:"behindHTTPSProxy,omitempty"`
+	// BackupCopyDir is a second folder every backup is copied to, such as
+	// a mounted NAS share. Empty means no copies.
+	BackupCopyDir string `json:"backupCopyDir,omitempty"`
 }
 
 // TwoFactor reports whether two-factor sign-in is on.

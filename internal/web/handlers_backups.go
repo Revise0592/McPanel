@@ -14,6 +14,9 @@ type backupsData struct {
 	Backups   []backup.Backup
 	Intervals []int
 	Busy      bool
+	Total     int64 // size of all this server's backups
+	Free      int64 // free space on the backup disk; -1 when unknown
+	CopyDir   string
 }
 
 func (a *App) backupsPage(w http.ResponseWriter, r *http.Request) {
@@ -27,6 +30,14 @@ func (a *App) backupsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := backupsData{serverView: a.view(r, sv), Backups: list, Intervals: []int{0, 1, 3, 6, 12, 24, 48, 168}}
+	for _, b := range list {
+		d.Total += b.Size
+	}
+	d.Free = -1
+	if n, ok := backup.FreeSpace(a.Mgr.DataDir()); ok {
+		d.Free = n
+	}
+	d.CopyDir = a.Store.Settings().BackupCopyDir
 	d.Tab = "backups"
 	d.Busy = d.Status.Task != ""
 	a.render(w, r, "backups", sv.Name+" backups", "servers", d)
@@ -94,12 +105,17 @@ func (a *App) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	worldOnly := r.FormValue("what") == "world"
 	go func() {
-		if err := backup.Restore(a.Mgr.DataDir(), inst, name); err != nil {
+		if err := backup.Restore(a.Mgr.DataDir(), inst, name, worldOnly); err != nil {
 			inst.Logf("Restore failed: %v", err)
 		}
 	}()
-	setFlash(w, "Restoring. The current world is backed up first.")
+	if worldOnly {
+		setFlash(w, "Restoring the world. The server is backed up first.")
+	} else {
+		setFlash(w, "Restoring. The current world is backed up first.")
+	}
 	back(w, r, "/servers/"+sv.ID)
 }
 

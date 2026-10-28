@@ -152,6 +152,7 @@ input[type=text], input[type=password], input[type=number], input[type=search], 
 input:focus, select:focus, textarea:focus, .btn:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: 1px;
 }
+textarea.editor { min-height: 60vh; tab-size: 2; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
 textarea { min-height: 18rem; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .85rem; }
 input[type=color] { width: 3rem; height: 2.3rem; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: none; }
 .fields { display: grid; gap: 0 1.25rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
@@ -194,6 +195,10 @@ a.tag.update:hover { text-decoration: underline; }
 .server-card dl { display: grid; grid-template-columns: auto 1fr; gap: .2rem .9rem; margin: 0; font-size: .9rem; }
 .server-card dt { color: var(--muted); }
 .server-card dd { margin: 0; }
+.usage { display: flex; flex-wrap: wrap; gap: .25rem 1rem; color: var(--muted); }
+.server-header .usage { margin-top: .3rem; }
+.usage .warn { color: var(--warn); }
+.usage .bad { color: var(--bad); }
 .server-card .row { margin-top: auto; }
 
 .empty { text-align: center; padding: 3rem 1rem; }

@@ -4,10 +4,12 @@ import (
 	"crypto/subtle"
 	"log"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/Revise0592/McPanel/internal/auth"
+	"github.com/Revise0592/McPanel/internal/backup"
 	"github.com/Revise0592/McPanel/internal/store"
 )
 
@@ -144,6 +146,7 @@ const (
 	appearanceURL = "/settings"
 	accountURL    = "/settings/account"
 	securityURL   = "/settings/security"
+	backupsURL    = "/settings/backups"
 )
 
 type panelSettingsData struct {
@@ -160,6 +163,25 @@ func (a *App) panelSettingsPage(section string) http.HandlerFunc {
 		d := panelSettingsData{Section: section, HTTPS: viaHTTPS(r), Accents: accentPresets}
 		a.render(w, r, "panel_settings", "Settings", "settings", d)
 	}
+}
+
+func (a *App) saveBackupCopyDir(w http.ResponseWriter, r *http.Request) {
+	dir := strings.TrimSpace(r.FormValue("copyDir"))
+	if dir != "" {
+		if err := backup.CheckCopyDir(a.Mgr.DataDir(), dir); err != nil {
+			setError(w, "Can't use "+dir+": "+err.Error()+".")
+			back(w, r, backupsURL)
+			return
+		}
+		dir = filepath.Clean(dir)
+	}
+	a.Store.UpdateSettings(func(s *store.Settings) { s.BackupCopyDir = dir })
+	if dir == "" {
+		setFlash(w, "Saved. Backups are no longer copied.")
+	} else {
+		setFlash(w, "Saved. New backups will be copied to "+dir+".")
+	}
+	back(w, r, backupsURL)
 }
 
 func (a *App) saveHTTPSProxy(w http.ResponseWriter, r *http.Request) {

@@ -8,13 +8,15 @@ configure and back up your servers from one page.
 
 - Paper, Vanilla, Fabric and Bedrock servers
 - Java is downloaded automatically
-- Live console
+- Live console, with CPU, memory and (on Paper) TPS
 - Settings as plain controls, or edit `server.properties` directly
 - Server icons
 - Players: who's online, kick, ops, bans and whitelist, with skin heads
-- File browser: upload, download, new folders and delete
+- File browser: upload, download, new folders, delete, and edit config files
 - Backups: manual or scheduled, while the server runs; kept when a server
-  is deleted
+  is deleted. Restore everything or just the world, and keep copies in a
+  second folder
+- Scheduled restarts (with a warning to players) and console commands
 - Plugins and mods from Modrinth, filtered to your version
 - Shows when a newer server build or plugin/mod release is out, with one-click updates
 - Import a server or world from a zip

@@ -30,6 +30,9 @@ func NewManager(dataDir string, st *store.Store) *Manager {
 // DataDir returns the panel data directory.
 func (m *Manager) DataDir() string { return m.dataDir }
 
+// Settings returns the panel-wide settings.
+func (m *Manager) Settings() store.Settings { return m.store.Settings() }
+
 // Get returns the instance for id, creating its runtime state if needed.
 func (m *Manager) Get(id string) (*Instance, error) {
 	if _, err := m.store.Server(id); err != nil {
