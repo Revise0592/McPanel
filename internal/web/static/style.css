@@ -114,7 +114,7 @@ main.wrap { padding-block: 1.5rem 3rem; }
 .page-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
 .page-head h1 { margin: 0; }
 
-.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(360px, 100%), 1fr)); }
 .split { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr) 300px; align-items: start; }
 @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
 

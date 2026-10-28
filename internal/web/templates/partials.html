@@ -37,11 +37,10 @@
   <div class="title">
     {{template "server-avatar" .}}
     <a href="/servers/{{.ID}}">{{.Name}}</a>
-    {{if or .NewBuild .AddonUpdates}}<span class="tag update">Update available</span>{{end}}
     {{template "badge" .}}
   </div>
   <dl>
-    <dt>Type</dt><dd>{{typeLabel .Type}} {{.Version}}</dd>
+    <dt>Type</dt><dd>{{typeLabel .Type}} {{.Version}}{{if or .NewBuild .AddonUpdates}} <span class="tag update">Update available</span>{{end}}</dd>
     <dt>Address</dt><dd>{{if .Address}}<span class="mono">{{.Address}}</span>{{else}}<span class="muted">Not set yet</span>{{end}}</dd>
     <dt>Players</dt><dd>{{if .Status.Online}}{{len .Status.Players}} online{{else}}<span class="muted">-</span>{{end}}</dd>
   </dl>
