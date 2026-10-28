@@ -17,6 +17,18 @@
     if (e.detail.xhr.status !== 401) toast(e.detail.xhr.responseText || "Something went wrong.");
   });
 
+  // Pages marked data-reload-after-task reload when the server's job (a
+  // backup, an install) finishes, so their lists show the result.
+  var header = document.querySelector(".server-header[data-task]");
+  var lastTask = header ? header.getAttribute("data-task") : "";
+  document.body.addEventListener("htmx:afterSettle", function () {
+    var h = document.querySelector(".server-header[data-task]");
+    if (!h) return;
+    var task = h.getAttribute("data-task");
+    if (lastTask && !task && document.querySelector("[data-reload-after-task]")) location.reload();
+    lastTask = task;
+  });
+
   // Forms or buttons with data-confirm ask first.
   document.addEventListener("submit", function (e) {
     var msg = e.target.getAttribute("data-confirm");

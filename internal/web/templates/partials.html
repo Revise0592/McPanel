@@ -7,10 +7,10 @@
 
 {{define "task-progress"}}{{/* takes serverView; a bar while a job runs */}}
 {{- with .Status}}{{if .Task}}
-<div class="task-progress small" role="progressbar" aria-label="{{.Task}}"{{if ge .Progress 0}} aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{.Progress}}"{{end}}>
-  <span>{{.Task}}{{if ge .Progress 0}} · {{.Progress}}%{{else}}…{{end}}</span>
-  <div class="bar{{if lt .Progress 0}} unknown{{end}}"><div style="width: {{if ge .Progress 0}}{{.Progress}}{{else}}30{{end}}%"></div></div>
-</div>
+<span class="task-progress" role="progressbar" aria-label="{{.Task}}"{{if ge .Progress 0}} aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{.Progress}}"{{end}}>
+  <span class="bar{{if lt .Progress 0}} unknown{{end}}"><span style="width: {{if ge .Progress 0}}{{.Progress}}{{else}}100{{end}}%"></span></span>
+  <span>{{.Task}}{{if ge .Progress 0}} {{.Progress}}%{{else}}…{{end}}</span>
+</span>
 {{- end}}{{end}}
 {{- end}}
 
@@ -35,7 +35,7 @@
 {{- else}}<span class="avatar {{.Type}}" aria-hidden="true">{{slice (typeLabel .Type) 0 1}}</span>{{end -}}
 {{end}}
 
-{{define "backup-kind"}}<span class="tag">{{if eq .Label "auto"}}Scheduled{{else if eq .Label "manual"}}Manual{{else if eq .Label "before-restore"}}Before restore{{else if eq .Label "before-update"}}Before update{{else}}{{.Label}}{{end}}</span>{{end}}
+{{define "backup-kind"}}<span class="tag">{{backupKind .Label}}</span>{{end}}
 
 {{define "server-cards"}}
 {{range .}}{{template "server-card" .}}{{end}}
@@ -56,7 +56,7 @@
       {{else}}<span class="muted">-</span>{{end}}</dd>
     {{if .HasUsage}}<dt>Usage</dt><dd>{{template "usage" .}}</dd>{{end}}
   </dl>
-  {{template "task-progress" .}}
+  {{if .Status.Task}}<div class="small">{{template "task-progress" .}}</div>{{end}}
   <div class="row">
     {{template "power-buttons" .}}
     <span class="spacer"></span>
@@ -66,30 +66,30 @@
 {{end}}
 
 {{define "usage"}}{{/* takes serverView with HasUsage */}}
-<div class="usage small">
+<span class="usage">
   <span title="Share of this machine's processor">CPU {{if lt .Usage.CPU 0.0}}…{{else}}{{printf "%.0f" .Usage.CPU}}%{{end}}</span>
   <span title="Memory the server is using{{if .MemoryMB}}, out of the {{gb .MemoryMB}} it's allowed for the game{{end}}">Memory {{gb .Usage.MemoryMB}}</span>
   {{if .Usage.TPS}}<span class="{{if lt .Usage.TPS 15.0}}bad{{else if lt .Usage.TPS 19.0}}warn{{end}}" title="Game ticks per second. 20 is full speed; lower means the server is lagging.">TPS {{printf "%.1f" .Usage.TPS}}</span>{{end}}
-</div>
+</span>
 {{end}}
 
 {{define "server-header"}}
-<div class="server-header" hx-get="/servers/{{.ID}}/status" hx-trigger="every {{if .Status.Task}}1s{{else}}3s{{end}}" hx-swap="outerHTML" hx-target="this">
+<div class="server-header" data-task="{{.Status.Task}}" hx-get="/servers/{{.ID}}/status" hx-trigger="every {{if .Status.Task}}1s{{else}}3s{{end}}" hx-swap="outerHTML" hx-target="this">
   {{template "server-avatar" .}}
-  <div>
-    <h1>{{.Name}}</h1>
+  <div class="info">
+    <div class="name"><h1>{{.Name}}</h1>{{template "badge" .}}</div>
     <div class="meta">
-      {{template "badge" .}}
       <span>{{typeLabel .Type}} {{.Version}}{{if .Build}} <span class="muted">({{if eq .Type "fabric"}}loader {{else}}build {{end}}{{.Build}})</span>{{end}}</span>
-      {{if .Address}}<span>·</span><span class="mono">{{.Address}}</span>
-      <button class="btn ghost small" type="button" data-copy="{{.Address}}">Copy</button>{{end}}
-      {{if and .Status.Online (eq .Status.State "running")}}<span>· up {{since .Status.StartedAt}}</span>{{end}}
-      {{if .MapURL}}<span>·</span><a href="{{.MapURL}}" target="_blank" rel="noopener">Web map</a>{{end}}
+      {{if .Address}}<span class="addr"><span class="mono">{{.Address}}</span><button class="copy" type="button" data-copy="{{.Address}}" title="Copy address">Copy</button></span>{{end}}
+      {{if .MapURL}}<a href="{{.MapURL}}" target="_blank" rel="noopener">Web map</a>{{end}}
       {{if .NewBuild}}<a class="tag update" href="/servers/{{.ID}}/settings?s=version">Update available</a>{{end}}
       {{if .AddonUpdates}}<a class="tag update" href="/servers/{{.ID}}/addons">{{len .AddonUpdates}} {{.AddonNoun}} update{{if gt (len .AddonUpdates) 1}}s{{end}}</a>{{end}}
     </div>
-    {{if .HasUsage}}{{template "usage" .}}{{end}}
-    {{template "task-progress" .}}
+    <div class="live small">{{/* always present so the header keeps its height */}}
+      {{- if .Status.Task}}{{template "task-progress" .}}
+      {{- else if .HasUsage}}{{template "usage" .}}{{if eq .Status.State "running"}}<span class="muted">Up {{since .Status.StartedAt}}</span>{{end}}
+      {{- else}}<span class="muted">{{if .Status.Online}}Starting up…{{else}}Not running{{end}}</span>{{end -}}
+    </div>
   </div>
   <div class="actions">{{template "power-buttons" .}}</div>
 </div>
@@ -133,6 +133,28 @@
 {{else}}
   {{if not .Err}}<p class="muted">Nothing found for this version.</p>{{end}}
 {{end}}
+</div>
+{{end}}
+
+{{define "activity-list"}}{{/* takes []activity.Event */}}
+<ul class="list activity">
+{{range .}}
+  <li class="{{if .Kind}}ev-{{.Kind}}{{end}}">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="name">{{.Text}}{{if .Repeats}} <span class="muted small">({{add .Repeats 1}} times)</span>{{end}}</span>
+    <time class="muted small" datetime="{{.Time.Format "2006-01-02T15:04:05Z07:00"}}" title="{{date .Time}}">{{ago .Time}}</time>
+  </li>
+{{else}}
+  <li class="none">Nothing yet. Starts, stops, backups, updates and crashes show up here.</li>
+{{end}}
+</ul>
+{{end}}
+
+{{define "activity-card"}}{{/* takes activityData; refreshes itself */}}
+<div class="card" hx-get="/servers/{{.ID}}/activity?view=card" hx-trigger="every 10s" hx-swap="outerHTML">
+  <h2>Recent activity</h2>
+  {{template "activity-list" .Events}}
+  {{if .More}}<a class="small" href="/servers/{{.ID}}/activity">See all</a>{{end}}
 </div>
 {{end}}
 

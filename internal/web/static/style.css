@@ -184,12 +184,12 @@ input[type=color] { width: 3rem; height: 2.3rem; padding: 0; border: 1px solid v
 .badge.starting::before, .badge.stopping::before, .badge.busy::before { background: var(--warn); }
 .badge.crashed { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
 .badge.crashed::before { background: var(--bad); }
-.task-progress { display: flex; flex-direction: column; gap: .3rem; margin-top: .5rem; max-width: 26rem; color: var(--muted); }
-.task-progress .bar { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
-.task-progress .bar > div { height: 100%; border-radius: inherit; background: var(--accent); transition: width .6s ease; }
-.task-progress .bar.unknown > div { animation: task-slide 1.4s ease-in-out infinite; }
-@keyframes task-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
-@media (prefers-reduced-motion: reduce) { .task-progress .bar.unknown > div { animation: none; width: 100% !important; opacity: .4; } }
+.task-progress { display: inline-flex; align-items: center; gap: .6rem; color: var(--muted); }
+.task-progress .bar { display: block; width: 10rem; height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.task-progress .bar > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .6s ease; }
+.task-progress .bar.unknown > span { width: 100% !important; animation: task-pulse 1s ease-in-out infinite alternate; }
+@keyframes task-pulse { from { opacity: .25; } to { opacity: .7; } }
+@media (prefers-reduced-motion: reduce) { .task-progress .bar.unknown > span { animation: none; opacity: .4; } }
 .tag { font-size: .78rem; padding: .1rem .5rem; border-radius: 6px; background: var(--surface-2); color: var(--muted); font-weight: 550; }
 .tag.update { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); white-space: nowrap; }
 a.tag.update:hover { text-decoration: underline; }
@@ -204,8 +204,8 @@ a.tag.update:hover { text-decoration: underline; }
 .quick { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .6rem; }
 .card-heads { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .2rem; margin-left: .4rem; vertical-align: middle; }
 .card-heads .head { width: 18px; height: 18px; border-radius: 3px; image-rendering: pixelated; }
-.usage { display: flex; flex-wrap: wrap; gap: .25rem 1rem; color: var(--muted); }
-.server-header .usage { margin-top: .3rem; }
+.usage { display: inline-flex; flex-wrap: wrap; gap: .25rem 1rem; color: var(--muted); }
+.server-card .usage { font-size: .85rem; }
 .usage .warn { color: var(--warn); }
 .usage .bad { color: var(--bad); }
 .server-card .row { margin-top: auto; }
@@ -214,12 +214,22 @@ a.tag.update:hover { text-decoration: underline; }
 .empty p { color: var(--muted); }
 
 /* Server page header */
-.server-header { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
-.server-header .avatar { width: 3rem; height: 3rem; font-size: 1.3rem; }
-.server-header > div:not(.actions) { flex: 1; min-width: 0; }
+.server-header { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+.server-header .avatar { width: 3.5rem; height: 3.5rem; font-size: 1.4rem; flex: none; }
+.server-header .info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .3rem; }
+.server-header .name { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .server-header h1 { margin: 0; }
-.server-header .meta { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; color: var(--muted); font-size: .9rem; }
-.server-header .actions { margin-left: auto; display: flex; gap: .5rem; }
+.server-header .meta { display: flex; gap: .35rem 1rem; align-items: center; flex-wrap: wrap; color: var(--muted); font-size: .9rem; }
+.server-header .live { display: flex; gap: .25rem 1rem; align-items: center; flex-wrap: wrap; min-height: 1.3rem; }
+.server-header .actions { margin-left: auto; display: flex; gap: .5rem; align-self: center; }
+.addr { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); overflow: hidden; }
+.addr .mono { padding: .05rem .5rem; color: var(--text); }
+.addr .copy {
+  border: 0; border-left: 1px solid var(--border); background: var(--surface-2); color: var(--muted);
+  font: inherit; font-size: .8rem; font-weight: 550; padding: .1rem .55rem; cursor: pointer; align-self: stretch;
+}
+.addr .copy:hover { color: var(--text); }
+.addr .copy:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent); outline-offset: -2px; }
 
 .tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; overflow-x: auto; scrollbar-width: none; }
 .tabs a {
@@ -250,6 +260,13 @@ a.tag.update:hover { text-decoration: underline; }
 .list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .list .actions { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: flex-end; }
 .list .none { color: var(--muted); }
+.activity li { gap: .6rem; padding: .45rem 0; font-size: .9rem; }
+.activity .name { white-space: normal; }
+.activity time { flex: none; white-space: nowrap; }
+.activity .dot { flex: none; width: .45rem; height: .45rem; border-radius: 50%; background: var(--idle); }
+.activity .ev-crash .dot, .activity .ev-failed .dot { background: var(--bad); }
+.activity .ev-crash .name, .activity .ev-failed .name { color: var(--bad); }
+.activity .ev-update .dot { background: var(--accent); }
 .list .head { width: 20px; height: 20px; flex: none; margin-right: -.25rem; border-radius: 3px; image-rendering: pixelated; }
 
 table { width: 100%; border-collapse: collapse; }

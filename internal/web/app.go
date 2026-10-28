@@ -24,6 +24,7 @@ import (
 	"github.com/Revise0592/McPanel/internal/heads"
 	"github.com/Revise0592/McPanel/internal/importer"
 	"github.com/Revise0592/McPanel/internal/mc"
+	"github.com/Revise0592/McPanel/internal/notify"
 	"github.com/Revise0592/McPanel/internal/schedule"
 	"github.com/Revise0592/McPanel/internal/store"
 	"github.com/Revise0592/McPanel/internal/updates"
@@ -41,6 +42,7 @@ type App struct {
 	Mgr       *mc.Manager
 	Updates   *updates.Checker
 	Tasks     *schedule.Scheduler
+	Notify    *notify.Notifier
 	SetupCode string
 
 	sessions *auth.Sessions
@@ -58,11 +60,13 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 		Mgr:       mgr,
 		Updates:   updates.New(st, mgr),
 		Tasks:     schedule.New(st, mgr),
+		Notify:    notify.New(st),
 		SetupCode: setupCode,
 		limiter:   auth.NewLimiter(),
 		pages:     map[string]*template.Template{},
 		heads:     heads.New(),
 	}
+	mgr.Activity().OnEvent(a.Notify.Event)
 	importer.CleanStale(filepath.Join(mgr.DataDir(), "tmp"))
 	a.sessions = &auth.Sessions{
 		Secret: func() string { return st.Settings().SessionSecret },
@@ -86,10 +90,12 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 		"ago":       ago,
 		// The extra minute stops "in 6 hours" showing as "in 5 hours" a
 		// moment after the task is added.
-		"until": func(t time.Time) string { return span(time.Until(t) + time.Minute) },
-		"since": since,
-		"date":  func(t time.Time) string { return t.Format("2 Jan 2006, 15:04") },
-		"lower": strings.ToLower,
+		"until":      func(t time.Time) string { return span(time.Until(t) + time.Minute) },
+		"since":      since,
+		"backupKind": backup.KindLabel,
+		"add":        func(a, b int) int { return a + b },
+		"date":       func(t time.Time) string { return t.Format("2 Jan 2006, 15:04") },
+		"lower":      strings.ToLower,
 		"title": func(s string) string {
 			if s == "" {
 				return s
@@ -160,6 +166,7 @@ func (a *App) Handler() http.Handler {
 
 	p("GET /servers/{id}", a.consolePage)
 	p("GET /servers/{id}/status", a.statusPartial)
+	p("GET /servers/{id}/activity", a.activityPage)
 	p("GET /servers/{id}/console/stream", a.consoleStream)
 	p("POST /servers/{id}/command", a.sendCommand)
 	p("POST /servers/{id}/power/{action}", a.power)
@@ -217,6 +224,9 @@ func (a *App) Handler() http.Handler {
 	p("GET /settings/security", a.panelSettingsPage("security"))
 	p("GET /settings/backups", a.panelSettingsPage("backups"))
 	p("POST /settings/backups", a.saveBackupCopyDir)
+	p("GET /settings/alerts", a.panelSettingsPage("alerts"))
+	p("POST /settings/alerts", a.saveAlerts)
+	p("POST /settings/alerts/test", a.testAlert)
 	p("POST /settings", a.savePanelSettings)
 	p("POST /settings/logo", a.uploadLogo)
 	p("POST /settings/logo/remove", a.removeLogo)

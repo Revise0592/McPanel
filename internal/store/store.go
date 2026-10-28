@@ -112,6 +112,13 @@ type Settings struct {
 	// BackupCopyDir is a second folder every backup is copied to, such as
 	// a mounted NAS share. Empty means no copies.
 	BackupCopyDir string `json:"backupCopyDir,omitempty"`
+	// Alerts are posted to WebhookURL (Discord, Slack or any JSON
+	// webhook) for the kinds of event turned on.
+	WebhookURL    string `json:"webhookURL,omitempty"`
+	AlertCrashes  bool   `json:"alertCrashes,omitempty"`
+	AlertFailures bool   `json:"alertFailures,omitempty"`
+	AlertUpdates  bool   `json:"alertUpdates,omitempty"`
+	AlertPower    bool   `json:"alertPower,omitempty"`
 }
 
 // TwoFactor reports whether two-factor sign-in is on.

@@ -1,11 +1,14 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 
+	"github.com/Revise0592/McPanel/internal/activity"
 	"github.com/Revise0592/McPanel/internal/backup"
+	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
 )
 
@@ -49,8 +52,8 @@ func (a *App) createBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		if _, err := backup.Create(a.Mgr.DataDir(), inst, "manual"); err != nil {
-			inst.Logf("Backup failed: %v", err)
+		if _, err := backup.Create(a.Mgr.DataDir(), inst, "manual"); errors.Is(err, mc.ErrBusy) {
+			inst.Logf("Backup not started: %v", err)
 		}
 	}()
 	setFlash(w, "Backup started. It will appear here when it's done.")
@@ -108,7 +111,7 @@ func (a *App) restoreBackup(w http.ResponseWriter, r *http.Request) {
 	worldOnly := r.FormValue("what") == "world"
 	go func() {
 		if err := backup.Restore(a.Mgr.DataDir(), inst, name, worldOnly); err != nil {
-			inst.Logf("Restore failed: %v", err)
+			inst.Record(activity.Failed, "Restore failed: %v", err)
 		}
 	}()
 	if worldOnly {

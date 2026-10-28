@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Revise0592/McPanel/internal/activity"
 	"github.com/Revise0592/McPanel/internal/install"
 	"github.com/Revise0592/McPanel/internal/props"
 	"github.com/Revise0592/McPanel/internal/store"
@@ -15,8 +16,9 @@ import (
 
 // Manager owns every server instance.
 type Manager struct {
-	dataDir string
-	store   *store.Store
+	dataDir  string
+	store    *store.Store
+	activity *activity.Log
 
 	mu    sync.Mutex
 	insts map[string]*Instance
@@ -24,8 +26,11 @@ type Manager struct {
 
 // NewManager creates a manager for servers under dataDir/servers.
 func NewManager(dataDir string, st *store.Store) *Manager {
-	return &Manager{dataDir: dataDir, store: st, insts: map[string]*Instance{}}
+	return &Manager{dataDir: dataDir, store: st, activity: activity.New(dataDir), insts: map[string]*Instance{}}
 }
+
+// Activity is the history of what happened to each server.
+func (m *Manager) Activity() *activity.Log { return m.activity }
 
 // DataDir returns the panel data directory.
 func (m *Manager) DataDir() string { return m.dataDir }
@@ -152,7 +157,7 @@ func (m *Manager) install(id string, before func(*Instance) error, run installFu
 	}
 	if before != nil {
 		if err := before(inst); err != nil {
-			inst.Logf("Not changing version: %v", err)
+			inst.Record(activity.Failed, "Not changing version: %v", err)
 			return err
 		}
 	}
@@ -165,7 +170,7 @@ func (m *Manager) install(id string, before func(*Instance) error, run installFu
 	defer cancel()
 	res, err := run(install.WithProgress(ctx, inst.SetProgress), def, inst)
 	if err != nil {
-		inst.Logf("Install failed: %v", err)
+		inst.Record(activity.Failed, "Install failed: %v", err)
 		return err
 	}
 	if !def.Installed {
@@ -181,7 +186,12 @@ func (m *Manager) install(id string, before func(*Instance) error, run installFu
 	if err != nil {
 		return err
 	}
-	inst.Logf("Installed %s %s. Ready to start.", store.TypeLabel(def.Type), res.Version)
+	label := store.TypeLabel(def.Type) + " " + res.Version
+	if res.Build != "" {
+		label += " (build " + res.Build + ")"
+	}
+	inst.Logf("Installed %s. Ready to start.", label)
+	m.activity.Add(id, activity.Event{Text: "Installed " + label})
 	inst.EndTask()
 	if wasOnline {
 		return inst.Start()
@@ -270,5 +280,6 @@ func (m *Manager) Remove(id string) error {
 	if err := m.store.DeleteServer(id); err != nil {
 		return err
 	}
+	m.activity.Remove(id)
 	return os.RemoveAll(inst.Dir())
 }

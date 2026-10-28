@@ -4,11 +4,15 @@ package updates
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"maps"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/Revise0592/McPanel/internal/activity"
 	"github.com/Revise0592/McPanel/internal/addons"
 	"github.com/Revise0592/McPanel/internal/install"
 	"github.com/Revise0592/McPanel/internal/mc"
@@ -88,7 +92,44 @@ func (c *Checker) Check(ctx context.Context, id string) Info {
 	c.mu.Lock()
 	c.info[id] = in
 	c.mu.Unlock()
+	c.note(sv, in)
 	return in
+}
+
+// note adds an activity event for updates not reported before.
+func (c *Checker) note(sv store.Server, in Info) {
+	hist := c.mgr.Activity()
+	var keys, parts []string
+	if install.IsNewerBuild(sv, in.LatestBuild) {
+		if key := "build:" + sv.Version + ":" + in.LatestBuild; !hist.Seen(sv.ID, key) {
+			keys = append(keys, key)
+			what := "build " + in.LatestBuild
+			if sv.Type == store.TypeBedrock {
+				what = "version " + in.LatestBuild
+			}
+			parts = append(parts, fmt.Sprintf("%s %s", store.TypeLabel(sv.Type), what))
+		}
+	}
+	if inst, err := c.mgr.Get(sv.ID); err == nil && len(in.Addons) > 0 {
+		list, _ := addons.List(sv.Type, inst.Dir())
+		var names []string
+		for _, ad := range list {
+			u, ok := in.Addons[ad.Base()]
+			if !ok {
+				continue
+			}
+			if key := "addon:" + ad.Base() + ":" + u.Version; !hist.Seen(sv.ID, key) {
+				keys = append(keys, key)
+				names = append(names, fmt.Sprintf("%s %s", ad.Title, u.Version))
+			}
+		}
+		slices.Sort(names)
+		parts = append(parts, names...)
+	}
+	if len(keys) == 0 {
+		return
+	}
+	hist.Add(sv.ID, activity.Event{Kind: activity.Available, Text: "Update available: " + strings.Join(parts, ", "), Keys: keys})
 }
 
 // Recheck checks one server again in the background, after something on

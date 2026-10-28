@@ -2,13 +2,13 @@
 {{$v := .Data}}
 {{template "server-header" $v}}
 {{template "server-tabs" $v}}
-<div class="split">
+<div class="split" data-reload-after-task>
   <div class="card">
     <div class="card-head">
       <h2>Backups</h2>
       <form method="post" action="/servers/{{$v.ID}}/backups"><button class="btn primary" {{if $v.Busy}}disabled{{end}}>Back up now</button></form>
     </div>
-    {{if $v.Busy}}<p class="muted small">{{$v.Status.Task}}… refresh in a moment.</p>{{end}}
+    {{if $v.Busy}}<p class="muted small">{{$v.Status.Task}}… this page updates when it's done.</p>{{end}}
     {{if $v.Backups}}
     <div class="table-scroll">
     <table>

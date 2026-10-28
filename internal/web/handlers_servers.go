@@ -237,9 +237,10 @@ func (a *App) consolePage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	v := a.view(r, sv)
-	v.Tab = "console"
-	a.render(w, r, "console", sv.Name, "servers", v)
+	d := a.activityFor(sv.ID, cardEvents)
+	d.serverView = a.view(r, sv)
+	d.Tab = "console"
+	a.render(w, r, "console", sv.Name, "servers", d)
 }
 
 func (a *App) statusPartial(w http.ResponseWriter, r *http.Request) {

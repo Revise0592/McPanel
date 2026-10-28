@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Revise0592/McPanel/internal/activity"
 	"github.com/Revise0592/McPanel/internal/addons"
+	"github.com/Revise0592/McPanel/internal/install"
 )
 
 type addonsData struct {
@@ -61,6 +63,7 @@ func (a *App) addonsSearch(w http.ResponseWriter, r *http.Request) {
 	a.partial(w, "addon-results", d)
 }
 
+// addonsInstall installs an add-on and its dependencies in the background.
 func (a *App) addonsInstall(w http.ResponseWriter, r *http.Request) {
 	sv, inst, ok := a.load(w, r)
 	if !ok {
@@ -71,18 +74,29 @@ func (a *App) addonsInstall(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
-	defer cancel()
-	names, err := addons.Install(ctx, sv.Type, sv.Version, r.FormValue("project"), inst.Dir(), inst.Logf)
-	a.Updates.Recheck(sv.ID)
-	switch {
-	case err != nil:
-		setError(w, "Install failed: "+err.Error())
-	case len(names) == 1:
-		setFlash(w, fmt.Sprintf("Installed %s.%s", names[0], restartHint(inst)))
-	default:
-		setFlash(w, fmt.Sprintf("Installed %s (with dependencies).%s", strings.Join(names, ", "), restartHint(inst)))
+	noun := addons.Noun(sv.Type)
+	if err := inst.BeginTask("Installing " + noun); err != nil {
+		setError(w, "Wait until the server is no longer "+strings.TrimPrefix(err.Error(), "busy: ")+".")
+		back(w, r, to)
+		return
 	}
+	project := r.FormValue("project")
+	go func() {
+		defer inst.EndTask()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		names, err := addons.Install(install.WithProgress(ctx, inst.SetProgress), sv.Type, sv.Version, project, inst.Dir(), inst.Logf)
+		a.Updates.Recheck(sv.ID)
+		switch {
+		case err != nil:
+			inst.Record(activity.Failed, "Couldn't install the %s: %v", noun, err)
+		case len(names) == 1:
+			inst.Record(activity.Info, "Installed %s", names[0])
+		default:
+			inst.Record(activity.Info, "Installed %s (with dependencies)", strings.Join(names, ", "))
+		}
+	}()
+	setFlash(w, "Installing. The list updates when it's done."+restartHint(inst))
 	back(w, r, to)
 }
 
@@ -112,8 +126,8 @@ func (a *App) addonsRemove(w http.ResponseWriter, r *http.Request) {
 	back(w, r, "/servers/"+sv.ID+"/addons")
 }
 
-// addonsUpdate installs pending updates found by the update check: one
-// add-on, or all of them when no file is given.
+// addonsUpdate installs pending updates found by the update check, in the
+// background: one add-on, or all of them when no file is given.
 func (a *App) addonsUpdate(w http.ResponseWriter, r *http.Request) {
 	sv, inst, ok := a.load(w, r)
 	if !ok {
@@ -127,31 +141,53 @@ func (a *App) addonsUpdate(w http.ResponseWriter, r *http.Request) {
 	list, _ := addons.List(sv.Type, inst.Dir())
 	pending := a.Updates.Get(sv.ID).Addons
 	only := r.FormValue("file")
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
-	defer cancel()
-	var done []string
-	var failed []string
+	var todo []addons.Addon
 	for _, ad := range list {
-		u, ok := pending[ad.Base()]
-		if !ok || (only != "" && ad.File != only) {
-			continue
+		if _, ok := pending[ad.Base()]; ok && (only == "" || ad.File == only) {
+			todo = append(todo, ad)
 		}
-		title, err := addons.Apply(ctx, sv.Type, inst.Dir(), ad.File, u, inst.Logf)
-		if err != nil {
-			inst.Logf("Could not update %s: %v", ad.Title, err)
-			failed = append(failed, ad.Title)
-			continue
-		}
-		a.Updates.ForgetAddon(sv.ID, ad.Base())
-		done = append(done, title)
 	}
-	switch {
-	case len(failed) > 0:
-		setError(w, "Couldn't update "+strings.Join(failed, ", ")+". Details are in the console.")
-	case len(done) == 0:
+	if len(todo) == 0 {
 		setError(w, "No updates to install. Try checking again.")
-	default:
-		setFlash(w, fmt.Sprintf("Updated %s.%s", strings.Join(done, ", "), restartHint(inst)))
+		back(w, r, to)
+		return
+	}
+	noun := addons.Noun(sv.Type)
+	if err := inst.BeginTask("Updating " + noun + "s"); err != nil {
+		setError(w, "Wait until the server is no longer "+strings.TrimPrefix(err.Error(), "busy: ")+".")
+		back(w, r, to)
+		return
+	}
+	go func() {
+		defer inst.EndTask()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		var done, failed []string
+		for n, ad := range todo {
+			// Progress runs across all the downloads.
+			pctx := install.WithProgress(ctx, func(d, t int64) {
+				inst.SetProgress(int64(n)*t+d, int64(len(todo))*t)
+			})
+			title, err := addons.Apply(pctx, sv.Type, inst.Dir(), ad.File, pending[ad.Base()], inst.Logf)
+			if err != nil {
+				inst.Logf("Could not update %s: %v", ad.Title, err)
+				failed = append(failed, ad.Title)
+				continue
+			}
+			a.Updates.ForgetAddon(sv.ID, ad.Base())
+			done = append(done, title)
+		}
+		if len(done) > 0 {
+			inst.Record(activity.Info, "Updated %s", strings.Join(done, ", "))
+		}
+		if len(failed) > 0 {
+			inst.Record(activity.Failed, "Couldn't update %s. Details are in the console.", strings.Join(failed, ", "))
+		}
+	}()
+	if len(todo) == 1 {
+		setFlash(w, "Updating "+todo[0].Title+"."+restartHint(inst))
+	} else {
+		setFlash(w, fmt.Sprintf("Updating %d %ss.%s", len(todo), noun, restartHint(inst)))
 	}
 	back(w, r, to)
 }

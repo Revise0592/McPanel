@@ -1,0 +1,10 @@
+{{define "content"}}
+{{$v := .Data}}
+{{template "server-header" $v}}
+{{template "server-tabs" $v}}
+<div class="card">
+  <h2>Activity</h2>
+  <p class="muted small">The last 200 things that happened to this server. Messages from the game itself are in the console.</p>
+  {{template "activity-list" $v.Events}}
+</div>
+{{end}}

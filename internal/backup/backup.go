@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -17,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Revise0592/McPanel/internal/activity"
 	"github.com/Revise0592/McPanel/internal/archive"
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/props"
@@ -122,17 +122,40 @@ var saveDone = func(l string) bool {
 // Create backs up a server. label is a short tag such as "auto" or "manual".
 // A running server keeps running; saving is paused while files are copied.
 // If the panel has a copy folder, the backup is then copied there too.
+// The result is noted in the server's activity, except when the server was
+// busy with another job.
 func Create(dataDir string, inst *mc.Instance, label string) (Backup, error) {
 	b, err := create(dataDir, inst, label)
-	if err != nil {
+	if errors.Is(err, mc.ErrBusy) {
 		return b, err
 	}
+	if err != nil {
+		inst.Record(activity.Failed, "Backup failed: %v", err)
+		return b, err
+	}
+	inst.Logf("Backup saved (%s)", HumanSize(b.Size))
+	inst.Manager().Activity().Add(inst.ID, activity.Event{Text: fmt.Sprintf("%s backup saved (%s)", KindLabel(label), HumanSize(b.Size))})
 	if to := inst.Manager().Settings().BackupCopyDir; to != "" {
 		if err := copyOut(dataDir, inst.ID, b.Name, to); err != nil {
-			inst.Logf("Couldn't copy the backup to %s: %v", to, err)
+			inst.Record(activity.Failed, "Couldn't copy the backup to %s: %v", to, err)
 		}
 	}
 	return b, nil
+}
+
+// KindLabel names a backup label for display.
+func KindLabel(label string) string {
+	switch label {
+	case "auto":
+		return "Scheduled"
+	case "manual":
+		return "Manual"
+	case "before-restore":
+		return "Before restore"
+	case "before-update":
+		return "Before update"
+	}
+	return label
 }
 
 func create(dataDir string, inst *mc.Instance, label string) (Backup, error) {
@@ -204,7 +227,6 @@ func create(dataDir string, inst *mc.Instance, label string) (Backup, error) {
 	if err != nil {
 		return Backup{}, err
 	}
-	inst.Logf("Backup saved (%s)", HumanSize(info.Size()))
 	return Backup{Name: name, Label: label, Size: info.Size(), Created: now}, nil
 }
 
@@ -279,9 +301,9 @@ func Restore(dataDir string, inst *mc.Instance, name string, worldOnly bool) err
 	}
 	os.RemoveAll(tmp)
 	if worldOnly {
-		inst.Logf("Restored the world from backup %s", strings.TrimSuffix(name, ".tar.gz"))
+		inst.Record(activity.Info, "Restored the world from backup %s", strings.TrimSuffix(name, ".tar.gz"))
 	} else {
-		inst.Logf("Restored backup from %s", strings.TrimSuffix(name, ".tar.gz"))
+		inst.Record(activity.Info, "Restored backup from %s", strings.TrimSuffix(name, ".tar.gz"))
 	}
 	inst.EndTask()
 	if wasOnline {
@@ -439,7 +461,6 @@ func RunScheduler(ctx context.Context, st *store.Store, m *mc.Manager) {
 				continue
 			}
 			if _, err := Create(m.DataDir(), inst, "auto"); err != nil {
-				log.Printf("backup %s: %v", sv.Name, err)
 				continue
 			}
 			prune(m.DataDir(), st.Settings().BackupCopyDir, sv.ID, sv.BackupKeep)

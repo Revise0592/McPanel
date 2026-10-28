@@ -7,6 +7,7 @@
     <a href="/settings/account" {{if eq $d.Section "account"}}class="active" aria-current="page"{{end}}>Account</a>
     <a href="/settings/security" {{if eq $d.Section "security"}}class="active" aria-current="page"{{end}}>Security</a>
     <a href="/settings/backups" {{if eq $d.Section "backups"}}class="active" aria-current="page"{{end}}>Backups</a>
+    <a href="/settings/alerts" {{if eq $d.Section "alerts"}}class="active" aria-current="page"{{end}}>Alerts</a>
   </nav>
 
   <div class="stack">
@@ -102,6 +103,34 @@
         <div class="help">Leave blank to turn copies off. Each server gets its own folder inside. Copies of old scheduled backups are deleted along with them; copies of backups you delete yourself are kept. In Docker, mount the folder into the container first.</div>
       </div>
       <div class="form-actions"><button class="btn primary">Save</button></div>
+    </form>
+
+  {{else if eq $d.Section "alerts"}}
+    {{$fresh := not .Panel.WebhookURL}}
+    <form class="card" method="post" action="/settings/alerts">
+      <h2>Alerts</h2>
+      <p class="desc">Get a message when something needs your attention, without having the panel open.</p>
+      <div class="field">
+        <label for="webhookURL">Webhook address</label>
+        <input type="text" id="webhookURL" name="webhookURL" value="{{.Panel.WebhookURL}}" class="mono" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://discord.com/api/webhooks/…">
+        <div class="help">In Discord: Server Settings → Integrations → Webhooks → New Webhook → Copy Webhook URL. Slack incoming webhooks work too, and any other address gets a small JSON message. Leave blank to turn alerts off.</div>
+      </div>
+      <div class="field">
+        <label>Send a message when</label>
+        <label class="check"><input type="checkbox" name="crashes" {{if or $fresh .Panel.AlertCrashes}}checked{{end}}>
+          <span><strong>A server crashes</strong></span></label>
+        <label class="check"><input type="checkbox" name="failures" {{if or $fresh .Panel.AlertFailures}}checked{{end}}>
+          <span><strong>Something fails</strong><span class="help" style="display:block">A backup, restore, install or update, or a server that won't start.</span></span></label>
+        <label class="check"><input type="checkbox" name="updates" {{if or $fresh .Panel.AlertUpdates}}checked{{end}}>
+          <span><strong>An update is available</strong><span class="help" style="display:block">For the server software or its plugins and mods. Each update is only mentioned once.</span></span></label>
+        <label class="check"><input type="checkbox" name="power" {{if .Panel.AlertPower}}checked{{end}}>
+          <span><strong>A server starts, stops or restarts</strong><span class="help" style="display:block">"Started" is sent once players can join. A restart sends one message, not two.</span></span></label>
+      </div>
+      <p class="muted small">The same problem happening again within an hour is only sent once.</p>
+      <div class="form-actions">
+        <button class="btn" formaction="/settings/alerts/test">Send a test</button>
+        <button class="btn primary">Save</button>
+      </div>
     </form>
 
   {{else}}

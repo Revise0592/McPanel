@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Revise0592/McPanel/internal/activity"
 	"github.com/Revise0592/McPanel/internal/install"
 	"github.com/Revise0592/McPanel/internal/store"
 )
@@ -56,6 +57,9 @@ var (
 // ErrNotRunning is returned when a command needs a running server.
 var ErrNotRunning = errors.New("the server is not running")
 
+// ErrBusy is returned when another job is already running on the server.
+var ErrBusy = errors.New("busy")
+
 // Instance is one managed server.
 type Instance struct {
 	ID string
@@ -69,6 +73,7 @@ type Instance struct {
 	stdin       io.WriteCloser
 	done        chan struct{}
 	stopReq     bool
+	restarting  bool // stopped by Restart, so the next start is a restart
 	crashes     []time.Time
 	startedAt   time.Time
 	lines       []string
@@ -165,11 +170,19 @@ func (i *Instance) Logf(format string, args ...any) {
 	i.addLine("[McPanel] " + fmt.Sprintf(format, args...))
 }
 
+// Record writes a panel message to the console and keeps it in the server's
+// activity history.
+func (i *Instance) Record(kind activity.Kind, format string, args ...any) {
+	text := fmt.Sprintf(format, args...)
+	i.Logf("%s", text)
+	i.m.activity.Add(i.ID, activity.Event{Kind: kind, Text: text})
+}
+
 func (i *Instance) addLine(line string) {
 	line = ansiCodes.ReplaceAllString(line, "")
 	i.mu.Lock()
-	defer i.mu.Unlock()
 	if i.takeTPSLocked(line) {
+		i.mu.Unlock()
 		return
 	}
 	i.lines = append(i.lines, line)
@@ -182,13 +195,26 @@ func (i *Instance) addLine(line string) {
 		default:
 		}
 	}
-	i.parseLocked(line)
+	ready := i.parseLocked(line)
+	restarted := ready && i.restarting
+	if ready {
+		i.restarting = false
+	}
+	i.mu.Unlock()
+	if restarted {
+		i.m.activity.Add(i.ID, activity.Event{Kind: activity.Power, Text: "Restarted"})
+	} else if ready {
+		i.m.activity.Add(i.ID, activity.Event{Kind: activity.Power, Text: "Started"})
+	}
 }
 
-func (i *Instance) parseLocked(line string) {
+// parseLocked tracks state and players from a console line. It reports
+// whether the line shows the server has finished starting.
+func (i *Instance) parseLocked(line string) (ready bool) {
 	if i.state == Starting {
 		if (strings.Contains(line, "Done (") && strings.Contains(line, "help")) || strings.Contains(line, "Server started.") {
 			i.state = Running
+			ready = true
 		}
 	}
 	for _, re := range []*regexp.Regexp{javaJoin, javaLogin, bedJoin} {
@@ -197,7 +223,7 @@ func (i *Instance) parseLocked(line string) {
 			i.seen[m[1]] = time.Now()
 			i.rejected = slices.DeleteFunc(i.rejected, func(s string) bool { return s == m[1] })
 			i.lastPlayers = time.Now()
-			return
+			return ready
 		}
 	}
 	for _, re := range []*regexp.Regexp{javaLeave, bedLeave} {
@@ -205,7 +231,7 @@ func (i *Instance) parseLocked(line string) {
 			delete(i.players, m[1])
 			i.seen[m[1]] = time.Now()
 			i.lastPlayers = time.Now()
-			return
+			return ready
 		}
 	}
 	for _, re := range []*regexp.Regexp{javaReject, javaReject2} {
@@ -216,9 +242,10 @@ func (i *Instance) parseLocked(line string) {
 					i.rejected = i.rejected[1:]
 				}
 			}
-			return
+			return ready
 		}
 	}
+	return ready
 }
 
 // ClearRejected forgets a turned-away player.
@@ -249,7 +276,7 @@ func (i *Instance) BeginTask(name string) error {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if i.task != "" {
-		return fmt.Errorf("busy: %s", strings.ToLower(i.task))
+		return fmt.Errorf("%w: %s", ErrBusy, strings.ToLower(i.task))
 	}
 	i.task = name
 	i.progress = -1
@@ -304,9 +331,10 @@ func (i *Instance) Start() error {
 }
 
 func (i *Instance) fail(format string, args ...any) {
-	i.Logf(format, args...)
+	i.Record(activity.Failed, format, args...)
 	i.mu.Lock()
 	i.state = Stopped
+	i.restarting = false
 	i.mu.Unlock()
 }
 
@@ -352,7 +380,10 @@ func (i *Instance) run(def store.Server) {
 	if cancelled {
 		pr.Close()
 		pw.Close()
-		i.fail("Start cancelled")
+		i.Logf("Start cancelled")
+		i.mu.Lock()
+		i.state = Stopped
+		i.mu.Unlock()
 		return
 	}
 	i.Logf("Starting %s", def.Name)
@@ -390,11 +421,13 @@ func (i *Instance) run(def store.Server) {
 	}
 	clear(i.players)
 	requested := i.stopReq
+	restarting := i.restarting
 	restart := false
 	if requested {
 		i.state = Stopped
 	} else {
 		i.state = Crashed
+		i.restarting = false
 		now := time.Now()
 		i.crashes = slices.DeleteFunc(append(i.crashes, now), func(t time.Time) bool { return now.Sub(t) > crashWindow })
 		cur, derr := i.m.store.Server(i.ID)
@@ -404,20 +437,23 @@ func (i *Instance) run(def store.Server) {
 
 	if requested {
 		i.Logf("Server stopped")
+		if !restarting {
+			i.m.activity.Add(i.ID, activity.Event{Kind: activity.Power, Text: "Stopped"})
+		}
 		return
 	}
-	i.Logf("Server exited unexpectedly (%v)", err)
+	i.Record(activity.Crash, "Server exited unexpectedly (%v)", err)
 	if restart {
 		i.Logf("Restarting in 5 seconds")
 		time.AfterFunc(5*time.Second, func() {
 			if i.Status().State == Crashed {
 				if err := i.Start(); err != nil {
-					i.Logf("Restart failed: %v", err)
+					i.Record(activity.Failed, "Restart after crash failed: %v", err)
 				}
 			}
 		})
 	} else if len(i.crashes) >= maxCrashes {
-		i.Logf("Crashed %d times in %v, not restarting automatically", maxCrashes, crashWindow)
+		i.Record(activity.Failed, "Crashed %d times in %d minutes, not restarting automatically", maxCrashes, int(crashWindow.Minutes()))
 	}
 }
 
@@ -518,12 +554,18 @@ func (i *Instance) Restart() {
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), stopTimeout+10*time.Second)
 		defer cancel()
-		if err := i.StopAndWait(ctx); err != nil {
-			i.Logf("Restart failed: %v", err)
-			return
+		i.mu.Lock()
+		i.restarting = i.state == Running || i.state == Starting
+		i.mu.Unlock()
+		err := i.StopAndWait(ctx)
+		if err == nil {
+			err = i.Start()
 		}
-		if err := i.Start(); err != nil {
-			i.Logf("Restart failed: %v", err)
+		if err != nil {
+			i.mu.Lock()
+			i.restarting = false
+			i.mu.Unlock()
+			i.Record(activity.Failed, "Restart failed: %v", err)
 		}
 	}()
 }

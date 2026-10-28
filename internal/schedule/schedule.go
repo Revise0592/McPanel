@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Revise0592/McPanel/internal/activity"
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
 )
@@ -177,7 +178,7 @@ func (s *Scheduler) check(inst *mc.Instance, t store.Task, now time.Time) {
 	}
 	switch t.Action {
 	case store.TaskRestart:
-		inst.Logf("Scheduled restart")
+		inst.Record(activity.Info, "Scheduled restart")
 		inst.Restart()
 	case store.TaskCommand:
 		cmd := strings.TrimPrefix(strings.TrimSpace(t.Command), "/")
