@@ -1,6 +1,7 @@
 package web
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -21,12 +22,15 @@ import (
 // serverView bundles everything a page needs about one server.
 type serverView struct {
 	store.Server
-	Status    mc.Status
-	Address   string
-	Port      int
-	AddonNoun string
-	Tab       string
-	IconTime  int64 // server icon's change time; 0 when there is none
+	Status  mc.Status
+	Address string
+	// AutoAddress is the address guessed from the panel's host and the
+	// server's port, used when no join address is set.
+	AutoAddress string
+	Port        int
+	AddonNoun   string
+	Tab         string
+	IconTime    int64 // server icon's change time; 0 when there is none
 	// NewBuild is a newer build of the installed version, if there is one.
 	NewBuild     string
 	AddonUpdates map[string]addons.Update
@@ -42,8 +46,9 @@ func (a *App) view(r *http.Request, sv store.Server) serverView {
 		}
 	}
 	if v.Port > 0 {
-		v.Address = fmt.Sprintf("%s:%d", hostOnly(r), v.Port)
+		v.AutoAddress = fmt.Sprintf("%s:%d", hostOnly(r), v.Port)
 	}
+	v.Address = cmp.Or(sv.JoinAddress, v.AutoAddress)
 	if addons.Supported(sv.Type) {
 		v.AddonNoun = addons.Noun(sv.Type)
 	}

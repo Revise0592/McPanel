@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -215,8 +216,15 @@ func (a *App) saveServerSettings(w http.ResponseWriter, r *http.Request) {
 	if strings.ContainsAny(javaArgs, "\n\r") {
 		javaArgs = strings.Join(strings.Fields(javaArgs), " ")
 	}
+	joinAddress := strings.TrimSpace(r.FormValue("joinAddress"))
+	if joinAddress != "" && !validJoinAddress(joinAddress) {
+		setError(w, "The join address should look like play.example.com or play.example.com:25565.")
+		back(w, r, to)
+		return
+	}
 	_, err := a.Store.UpdateServer(sv.ID, func(s *store.Server) {
 		s.Name = name
+		s.JoinAddress = joinAddress
 		s.AutoStart = r.FormValue("autoStart") == "on"
 		s.RestartOnCrash = r.FormValue("restartOnCrash") == "on"
 		if store.IsJava(s.Type) {
@@ -230,6 +238,33 @@ func (a *App) saveServerSettings(w http.ResponseWriter, r *http.Request) {
 		setFlash(w, "Saved."+restartHint(inst))
 	}
 	back(w, r, to)
+}
+
+// validJoinAddress reports whether s is a host name or IP, optionally
+// followed by :port, with nothing else around it.
+func validJoinAddress(s string) bool {
+	host := s
+	if h, port, err := net.SplitHostPort(s); err == nil {
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
+			return false
+		}
+		host = h
+	} else if strings.Contains(s, ":") && net.ParseIP(s) == nil {
+		return false
+	}
+	if host == "" || len(host) > 253 {
+		return false
+	}
+	if net.ParseIP(host) != nil {
+		return true
+	}
+	for _, c := range host {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '.' || c == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 func (a *App) saveRawProperties(w http.ResponseWriter, r *http.Request) {

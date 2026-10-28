@@ -29,6 +29,11 @@
         </div>
         {{end}}
       </div>
+      <div class="field">
+        <label for="joinAddress">Address players use</label>
+        <input type="text" id="joinAddress" name="joinAddress" value="{{$v.JoinAddress}}" class="mono" maxlength="260" placeholder="{{or $v.AutoAddress "e.g. play.example.com:25565"}}">
+        <div class="help">Leave blank to use the panel's address. Set this if players connect through a proxy or a different domain.</div>
+      </div>
       {{if isJava $v.Type}}
       <div class="field">
         <label for="javaArgs">Extra Java options</label>

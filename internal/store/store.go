@@ -44,15 +44,18 @@ func IsJava(t string) bool { return t != TypeBedrock }
 
 // Server is a saved server definition.
 type Server struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
-	Type             string `json:"type"`
-	Version          string `json:"version"`
-	Build            string `json:"build,omitempty"`
-	Executable       string `json:"executable,omitempty"`
-	JavaMajor        int    `json:"javaMajor,omitempty"`
-	MemoryMB         int    `json:"memoryMB,omitempty"`
-	JavaArgs         string `json:"javaArgs,omitempty"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	Version    string `json:"version"`
+	Build      string `json:"build,omitempty"`
+	Executable string `json:"executable,omitempty"`
+	JavaMajor  int    `json:"javaMajor,omitempty"`
+	MemoryMB   int    `json:"memoryMB,omitempty"`
+	JavaArgs   string `json:"javaArgs,omitempty"`
+	// JoinAddress is the address players connect to, when it differs from
+	// the panel's own host and the server's port (e.g. behind a proxy).
+	JoinAddress      string `json:"joinAddress,omitempty"`
 	AutoStart        bool   `json:"autoStart"`
 	RestartOnCrash   bool   `json:"restartOnCrash"`
 	BackupEveryHours int    `json:"backupEveryHours"`
