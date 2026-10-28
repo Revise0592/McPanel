@@ -94,6 +94,7 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 		"since":      since,
 		"backupKind": backup.KindLabel,
 		"add":        func(a, b int) int { return a + b },
+		"playtime":   playtime,
 		"date":       func(t time.Time) string { return t.Format("2 Jan 2006, 15:04") },
 		"lower":      strings.ToLower,
 		"title": func(s string) string {
@@ -167,6 +168,7 @@ func (a *App) Handler() http.Handler {
 	p("GET /servers/{id}", a.consolePage)
 	p("GET /servers/{id}/status", a.statusPartial)
 	p("GET /servers/{id}/activity", a.activityPage)
+	p("GET /servers/{id}/usage", a.usagePartial)
 	p("GET /servers/{id}/console/stream", a.consoleStream)
 	p("POST /servers/{id}/command", a.sendCommand)
 	p("POST /servers/{id}/power/{action}", a.power)
@@ -431,6 +433,21 @@ func span(d time.Duration) string {
 		return plural(int(d.Hours()), "hour")
 	}
 	return plural(int(d.Hours()/24), "day")
+}
+
+// playtime is a short total such as "45 min" or "12 h 5 min".
+func playtime(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return "under a minute"
+	case d < time.Hour:
+		return fmt.Sprintf("%d min", int(d.Minutes()))
+	}
+	h, m := int(d.Hours()), int(d.Minutes())%60
+	if m == 0 || h >= 100 {
+		return fmt.Sprintf("%d h", h)
+	}
+	return fmt.Sprintf("%d h %d min", h, m)
 }
 
 func plural(n int, unit string) string {

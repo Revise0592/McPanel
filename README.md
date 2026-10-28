@@ -6,26 +6,27 @@ configure and back up your servers from one page.
 
 ## Features
 
-- Paper, Vanilla, Fabric and Bedrock servers
-- Java is downloaded automatically
-- Live console with quick buttons, and CPU, memory and (on Paper) TPS
+- Paper, Vanilla, Fabric and Bedrock servers; Java is downloaded automatically
+- Live console with quick buttons, and CPU, memory and (on Paper) TPS charts
+  for the last hour or day
 - Settings as plain controls, or edit `server.properties` directly
-- Server icons
-- Players: who's online and who played recently, kick, ops, bans and
-  whitelist, with skin heads
+- Players: who's online, who played recently and for how long, kick, ops,
+  bans and whitelist
 - File browser: upload, download, new folders, delete, and edit config files
 - Backups: manual or scheduled, while the server runs; kept when a server
   is deleted. Restore everything or just the world, and keep copies in a
   second folder
-- Scheduled restarts (with a warning to players) and console commands
-- Plugins and mods from Modrinth, filtered to your version
-- Shows when a newer server build or plugin/mod release is out, with one-click updates
+- Plugins and mods from Modrinth, filtered to your version, with one-click
+  updates when they or the server software have a new release
+- Scheduled restarts (with a warning to players) and commands; restart on
+  crash, start with the panel
+- Activity history for each server, and alerts to Discord, Slack or any
+  webhook for crashes, failures, updates, starts and stops
 - Import a server or world from a zip
-- Restart on crash, start with the panel
 - Two-factor sign-in
 - Link to the BlueMap or Dynmap web map, and a warning when the disk is
   nearly full
-- Light/dark theme, accent colour, panel name and logo
+- Light/dark theme, accent colour, panel name, logo and server icons
 
 ## Docker
 
@@ -107,6 +108,8 @@ data/
   mcpanel.json        panel settings and server list
   servers/<id>/       server files (worlds, configs, plugins)
   backups/<id>/       backups
+  activity/<id>.json  each server's activity history
+  players/<id>.json   when players were seen and how long they played
   runtimes/           downloaded Java
 ```
 

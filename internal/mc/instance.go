@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,7 +80,9 @@ type Instance struct {
 	players     map[string]time.Time
 	rejected    []string
 	lastPlayers time.Time
-	seen        map[string]time.Time // last time each player was online
+	stats       map[string]PlayerStats
+	statsDirty  bool
+	saveMu      sync.Mutex // serialises writes of the stats file
 
 	// Resource use, see Usage.
 	paper    bool
@@ -90,10 +91,14 @@ type Instance struct {
 	tps      float64
 	tpsAt    time.Time
 	tpsAsked time.Time
+	histPrev cpuSample
+	history  []Sample
 }
 
 func newInstance(m *Manager, id string) *Instance {
-	return &Instance{ID: id, m: m, state: Stopped, subs: map[chan string]struct{}{}, players: map[string]time.Time{}, seen: map[string]time.Time{}}
+	i := &Instance{ID: id, m: m, state: Stopped, subs: map[chan string]struct{}{}, players: map[string]time.Time{}, stats: map[string]PlayerStats{}}
+	i.loadStats()
+	return i
 }
 
 // Dir is the server's working directory.
@@ -148,13 +153,6 @@ func (i *Instance) Status() Status {
 	return st
 }
 
-// Seen returns when each player was last online since the panel started.
-func (i *Instance) Seen() map[string]time.Time {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	return maps.Clone(i.seen)
-}
-
 // LastPlayerActivity is the last time anyone was seen online.
 func (i *Instance) LastPlayerActivity() time.Time {
 	i.mu.Lock()
@@ -200,7 +198,11 @@ func (i *Instance) addLine(line string) {
 	if ready {
 		i.restarting = false
 	}
+	dirty := i.statsDirty
 	i.mu.Unlock()
+	if dirty {
+		i.saveStats()
+	}
 	if restarted {
 		i.m.activity.Add(i.ID, activity.Event{Kind: activity.Power, Text: "Restarted"})
 	} else if ready {
@@ -219,8 +221,7 @@ func (i *Instance) parseLocked(line string) (ready bool) {
 	}
 	for _, re := range []*regexp.Regexp{javaJoin, javaLogin, bedJoin} {
 		if m := re.FindStringSubmatch(line); m != nil {
-			i.players[m[1]] = time.Now()
-			i.seen[m[1]] = time.Now()
+			i.joinedLocked(m[1], time.Now())
 			i.rejected = slices.DeleteFunc(i.rejected, func(s string) bool { return s == m[1] })
 			i.lastPlayers = time.Now()
 			return ready
@@ -228,8 +229,7 @@ func (i *Instance) parseLocked(line string) (ready bool) {
 	}
 	for _, re := range []*regexp.Regexp{javaLeave, bedLeave} {
 		if m := re.FindStringSubmatch(line); m != nil {
-			delete(i.players, m[1])
-			i.seen[m[1]] = time.Now()
+			i.leftLocked(m[1], time.Now())
 			i.lastPlayers = time.Now()
 			return ready
 		}
@@ -416,10 +416,10 @@ func (i *Instance) run(def store.Server) {
 	if len(i.players) > 0 {
 		i.lastPlayers = time.Now()
 	}
+	now := time.Now()
 	for p := range i.players {
-		i.seen[p] = time.Now()
+		i.leftLocked(p, now)
 	}
-	clear(i.players)
 	requested := i.stopReq
 	restarting := i.restarting
 	restart := false
@@ -434,6 +434,7 @@ func (i *Instance) run(def store.Server) {
 		restart = derr == nil && cur.RestartOnCrash && len(i.crashes) < maxCrashes
 	}
 	i.mu.Unlock()
+	i.saveStats()
 
 	if requested {
 		i.Logf("Server stopped")

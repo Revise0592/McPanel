@@ -260,6 +260,27 @@ a.tag.update:hover { text-decoration: underline; }
 .list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .list .actions { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: flex-end; }
 .list .none { color: var(--muted); }
+.usage-card .card-head { margin-bottom: .25rem; }
+.seg-links { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg-links a { padding: .2rem .65rem; font-size: .82rem; font-weight: 550; color: var(--muted); }
+.seg-links a + a { border-left: 1px solid var(--border); }
+.seg-links a:hover { text-decoration: none; color: var(--text); }
+.seg-links a.active { background: var(--surface-2); color: var(--text); }
+.usage-readout { margin: 0 0 .6rem; min-height: 1.3rem; }
+.usage-readout.live { color: var(--text); }
+.usage-charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem 1.5rem; }
+.chart { margin: 0; min-width: 0; }
+.chart figcaption { display: flex; justify-content: space-between; align-items: baseline; font-size: .85rem; color: var(--muted); margin-bottom: .45rem; }
+.chart figcaption strong { color: var(--text); font-weight: 600; }
+.plot-area { position: relative; height: 72px; margin-left: 3rem; cursor: crosshair; touch-action: pan-y; }
+.plot-area .tick { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border); }
+.plot-area .tick > span { position: absolute; right: calc(100% + .4rem); transform: translateY(-50%); font-size: .7rem; color: var(--muted); white-space: nowrap; }
+.plot-area svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.plot-area .line { fill: none; stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; stroke-linecap: round; }
+.plot-area .area { fill: var(--accent); opacity: .1; }
+.plot-area .crosshair { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--muted); pointer-events: none; }
+.chart .axis { display: flex; justify-content: space-between; margin: .3rem 0 0 3rem; font-size: .7rem; color: var(--muted); }
+.usage-card .disclosure { margin-top: .75rem; }
 .activity li { gap: .6rem; padding: .45rem 0; font-size: .9rem; }
 .activity .name { white-space: normal; }
 .activity time { flex: none; white-space: nowrap; }

@@ -233,13 +233,14 @@ func (a *App) createServer(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) consolePage(w http.ResponseWriter, r *http.Request) {
-	sv, _, ok := a.load(w, r)
+	sv, inst, ok := a.load(w, r)
 	if !ok {
 		return
 	}
-	d := a.activityFor(sv.ID, cardEvents)
+	d := consoleData{activityData: a.activityFor(sv.ID, cardEvents)}
 	d.serverView = a.view(r, sv)
 	d.Tab = "console"
+	d.Performance = a.buildUsage(d.serverView, inst, "")
 	a.render(w, r, "console", sv.Name, "servers", d)
 }
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
 )
 
@@ -49,10 +50,13 @@ func TestRecentPlayers(t *testing.T) {
 		{"name":"Alex","uuid":"x","expiresOn":"2026-11-20 10:00:00 +0000"},
 		{"name":"Steve","uuid":"y","expiresOn":"2026-11-25 10:00:00 +0000"},
 		{"name":"Online","uuid":"z","expiresOn":"2026-11-26 10:00:00 +0000"}]`), 0o644)
-	seen := map[string]time.Time{"Alex": time.Date(2026, 10, 28, 9, 0, 0, 0, time.UTC)}
-	got := RecentPlayers(store.Server{Type: store.TypePaper}, dir, seen, []string{"Online"}, 10)
+	stats := map[string]mc.PlayerStats{"Alex": {LastSeen: time.Date(2026, 10, 28, 9, 0, 0, 0, time.UTC), Played: time.Hour}}
+	got := RecentPlayers(store.Server{Type: store.TypePaper}, dir, stats, []string{"Online"}, 10)
 	if len(got) != 2 || got[0].Name != "Alex" || got[1].Name != "Steve" {
 		t.Fatalf("RecentPlayers = %+v", got)
+	}
+	if got[0].Played != time.Hour || got[1].Played != 0 {
+		t.Errorf("play times = %v, %v", got[0].Played, got[1].Played)
 	}
 	if want := time.Date(2026, 10, 25, 10, 0, 0, 0, time.UTC); !got[1].Seen.Equal(want) {
 		t.Errorf("Steve seen %v, want %v", got[1].Seen, want)

@@ -97,6 +97,9 @@ func (i *Instance) takeTPSLocked(line string) bool {
 	}
 	if v, err := strconv.ParseFloat(strings.TrimSuffix(m[1], "."), 64); err == nil {
 		i.tps, i.tpsAt = min(v, 20), time.Now()
+		if n := len(i.history); n > 0 && i.history[n-1].TPS == 0 && time.Since(i.history[n-1].At) < 10*time.Second {
+			i.history[n-1].TPS = i.tps
+		}
 	}
 	i.tpsAsked = time.Time{}
 	return true

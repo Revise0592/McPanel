@@ -3,6 +3,7 @@
 {{template "server-header" $v}}
 {{template "server-tabs" $v}}
 <div class="split">
+  <div class="stack">
   <div class="card">
     <pre class="console" id="console" data-stream="/servers/{{$v.ID}}/console/stream" aria-live="polite"></pre>
     <form class="command" id="command-form" method="post" action="/servers/{{$v.ID}}/command" autocomplete="off">
@@ -16,6 +17,8 @@
       <button type="button" class="btn small ghost" data-cmd="weather clear">Clear weather</button>
       {{if isJava $v.Type}}<button type="button" class="btn small ghost" data-cmd="save-all">Save the world</button>{{end}}
     </div>
+  </div>
+  {{template "usage-card" $v.Performance}}
   </div>
   <div class="stack">
     {{template "online-summary" $v}}

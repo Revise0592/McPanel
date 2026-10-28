@@ -7,36 +7,38 @@ import (
 	"slices"
 	"time"
 
+	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
 )
 
-// Recent is a player who has been on the server, and when they were last
-// seen there.
+// Recent is a player who has been on the server, when they were last seen
+// there, and how long they have played while the panel was watching.
 type Recent struct {
-	Name string
-	Seen time.Time
+	Name   string
+	Seen   time.Time
+	Played time.Duration
 }
 
 // RecentPlayers lists players who have joined, most recent first, leaving
 // out those online now. Java servers keep usercache.json, which says when
-// each player last joined; seen adds what the panel has watched itself,
+// each player last joined; stats adds what the panel has watched itself,
 // which is all there is for Bedrock.
-func RecentPlayers(def store.Server, dir string, seen map[string]time.Time, online []string, limit int) []Recent {
+func RecentPlayers(def store.Server, dir string, stats map[string]mc.PlayerStats, online []string, limit int) []Recent {
 	last := map[string]time.Time{}
 	if store.IsJava(def.Type) {
 		for name, t := range userCache(dir) {
 			last[name] = t
 		}
 	}
-	for name, t := range seen {
-		if t.After(last[name]) {
-			last[name] = t
+	for name, st := range stats {
+		if st.LastSeen.After(last[name]) {
+			last[name] = st.LastSeen
 		}
 	}
 	var out []Recent
 	for name, t := range last {
 		if !slices.Contains(online, name) {
-			out = append(out, Recent{name, t})
+			out = append(out, Recent{name, t, stats[name].Played})
 		}
 	}
 	slices.SortFunc(out, func(a, b Recent) int { return b.Seen.Compare(a.Seen) })

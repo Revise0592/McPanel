@@ -67,10 +67,10 @@
       <ul class="list">
       {{range $v.Recent}}
         <li><img class="head" src="{{headURL $v.Type .Name}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.Name}}</span>
-          <span class="muted small" title="{{date .Seen}}">{{ago .Seen}}</span></li>
+          <span class="muted small">{{if .Played}}<span title="Total time on this server">{{playtime .Played}} played</span> · {{end}}<span title="{{date .Seen}}">{{ago .Seen}}</span></span></li>
       {{else}}<li class="none">Nobody yet.</li>{{end}}
       </ul>
-      {{if $v.Bedrock}}<p class="muted small" style="margin-top:.5rem">Bedrock doesn't record this, so only players seen since McPanel last started are listed.</p>{{end}}
+      {{if $v.Bedrock}}<p class="muted small" style="margin-top:.5rem">Bedrock doesn't record this, so only players McPanel has seen join are listed.</p>{{end}}
     </div>
 
     {{if not $v.Bedrock}}

@@ -2,6 +2,7 @@ package mc
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Revise0592/McPanel/internal/store"
 )
@@ -28,5 +29,27 @@ func TestReadyLineRecordsStartOrRestart(t *testing.T) {
 	}
 	if i.restarting {
 		t.Error("restarting was not cleared")
+	}
+}
+
+func TestPlayerStatsSurviveRestart(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := NewManager(dir, st)
+	i := newInstance(m, "a")
+	i.state = Running
+	i.addLine("[09:25:30 INFO]: Steve joined the game")
+	i.mu.Lock()
+	i.players["Steve"] = i.players["Steve"].Add(-90 * time.Minute) // pretend they joined earlier
+	i.mu.Unlock()
+	i.addLine("[10:55:30 INFO]: Steve left the game")
+
+	again := newInstance(m, "a") // as after a panel restart
+	s := again.PlayerStats()["Steve"]
+	if s.Played < 90*time.Minute || s.Played > 91*time.Minute || s.FirstSeen.IsZero() {
+		t.Fatalf("stats = %+v", s)
 	}
 }

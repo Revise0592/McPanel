@@ -281,5 +281,6 @@ func (m *Manager) Remove(id string) error {
 		return err
 	}
 	m.activity.Remove(id)
+	os.Remove(statsPath(m.dataDir, id))
 	return os.RemoveAll(inst.Dir())
 }

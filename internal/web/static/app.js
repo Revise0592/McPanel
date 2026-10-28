@@ -29,6 +29,38 @@
     lastTask = task;
   });
 
+  // Usage charts: pointing at any chart moves a line across all of them to
+  // the nearest sample and shows its values above.
+  function hideUsage(box) {
+    box.querySelectorAll(".crosshair").forEach(function (c) { c.hidden = true; });
+    var out = box.parentNode.querySelector(".usage-readout");
+    if (out) { out.textContent = out.getAttribute("data-default"); out.classList.remove("live"); }
+  }
+  document.addEventListener("pointermove", function (e) {
+    var area = e.target.closest && e.target.closest(".plot-area");
+    var box = area && area.closest(".usage-charts");
+    if (!box) return;
+    if (!box._points) box._points = JSON.parse(box.getAttribute("data-points") || "[]");
+    var start = +box.getAttribute("data-start"), end = +box.getAttribute("data-end");
+    var r = area.getBoundingClientRect();
+    var t = start + (e.clientX - r.left) / r.width * (end - start);
+    var best = null;
+    box._points.forEach(function (p) { if (!best || Math.abs(p[0] - t) < Math.abs(best[0] - t)) best = p; });
+    if (!best || Math.abs(best[0] - t) > 2 * +box.getAttribute("data-bucket")) { hideUsage(box); return; }
+    var left = (best[0] - start) / (end - start) * 100 + "%";
+    box.querySelectorAll(".crosshair").forEach(function (c) { c.style.left = left; c.hidden = false; });
+    var d = new Date(best[0]);
+    var text = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
+      "  ·  CPU " + Math.round(best[1]) + "%  ·  Memory " + (best[2] < 1024 ? Math.round(best[2]) + " MB" : (best[2] / 1024).toFixed(1) + " GB");
+    if (best[3] !== null) text += "  ·  TPS " + best[3].toFixed(1);
+    var out = box.parentNode.querySelector(".usage-readout");
+    if (out) { out.textContent = text; out.classList.add("live"); }
+  });
+  document.addEventListener("pointerout", function (e) {
+    var area = e.target.closest && e.target.closest(".plot-area");
+    if (area && !area.contains(e.relatedTarget)) hideUsage(area.closest(".usage-charts"));
+  });
+
   // Forms or buttons with data-confirm ask first.
   document.addEventListener("submit", function (e) {
     var msg = e.target.getAttribute("data-confirm");

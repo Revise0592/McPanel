@@ -136,6 +136,42 @@
 </div>
 {{end}}
 
+{{define "usage-card"}}{{/* takes usageData; refreshes itself */}}
+<div class="card usage-card" hx-get="/servers/{{.ID}}/usage?range={{.Range.Key}}" hx-trigger="every 60s" hx-swap="outerHTML">
+  <div class="card-head">
+    <h2>Performance</h2>
+    <span class="seg-links">{{range .Ranges}}<a href="/servers/{{$.ID}}/usage?range={{.Key}}" hx-get="/servers/{{$.ID}}/usage?range={{.Key}}" hx-target="closest .usage-card" hx-swap="outerHTML"{{if eq .Key $.Range.Key}} class="active" aria-current="true"{{end}}>{{.Label}}</a>{{end}}</span>
+  </div>
+  {{if .HasData}}
+  <p class="usage-readout small muted" data-default="Point at a chart to see the values at that time.">Point at a chart to see the values at that time.</p>
+  <div class="usage-charts" data-points="{{.Points}}" data-start="{{.Start}}" data-end="{{.End}}" data-bucket="{{.BucketMS}}">
+    {{range .Charts}}
+    <figure class="chart">
+      <figcaption><span>{{.Title}}</span><strong>{{.Now}}</strong></figcaption>
+      <div class="plot-area">
+        {{range .Ticks}}<span class="tick" style="top: {{.Top}}%"><span>{{.Label}}</span></span>{{end}}
+        <svg viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><path class="area" d="{{.Area}}"/><path class="line" d="{{.Line}}"/></svg>
+        <span class="crosshair" hidden></span>
+      </div>
+      <div class="axis"><span>{{$.Range.Ago}}</span><span>now</span></div>
+    </figure>
+    {{end}}
+  </div>
+  <details class="disclosure">
+    <summary>Show as a table</summary>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>From</th><th>CPU</th><th>Memory</th>{{if gt (len .Charts) 2}}<th>TPS</th>{{end}}</tr></thead>
+      <tbody>{{range .Rows}}<tr><td>{{.Time.Format "15:04"}}</td><td>{{.CPU}}</td><td>{{.Mem}}</td>{{if gt (len $.Charts) 2}}<td>{{.TPS}}</td>{{end}}</tr>{{end}}</tbody>
+    </table>
+    </div>
+  </details>
+  {{else}}
+  <p class="muted">Charts show up a couple of minutes after the server starts. They cover the time since McPanel itself last started.</p>
+  {{end}}
+</div>
+{{end}}
+
 {{define "activity-list"}}{{/* takes []activity.Event */}}
 <ul class="list activity">
 {{range .}}

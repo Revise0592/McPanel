@@ -34,7 +34,7 @@ func (a *App) playersPage(w http.ResponseWriter, r *http.Request) {
 	d.Whitelist, _ = players.Read(sv, inst.Dir(), players.Whitelist)
 	d.Ops, _ = players.Read(sv, inst.Dir(), players.Ops)
 	d.Bans, _ = players.Read(sv, inst.Dir(), players.Bans)
-	d.Recent = players.RecentPlayers(sv, inst.Dir(), inst.Seen(), d.Status.Players, 10)
+	d.Recent = players.RecentPlayers(sv, inst.Dir(), inst.PlayerStats(), d.Status.Players, 10)
 	a.render(w, r, "players", sv.Name+" players", "servers", d)
 }
 

@@ -9,6 +9,12 @@ import (
 // cardEvents is how many events the console page shows.
 const cardEvents = 6
 
+// consoleData is the console page: activity plus the usage charts.
+type consoleData struct {
+	activityData
+	Performance usageData
+}
+
 type activityData struct {
 	serverView
 	Events []activity.Event
