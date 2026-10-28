@@ -317,7 +317,13 @@ type page struct {
 	FlashErr bool
 	Nav      string
 	Data     any
+	// DiskFree is set when the data disk is nearly full.
+	DiskFree int64
 }
+
+// lowDisk is when the panel starts warning about free space. Big worlds
+// and their backups can need a few GB at once.
+const lowDisk = 5 << 30
 
 const flashCookie = "mcpanel_flash"
 
@@ -329,6 +335,9 @@ func setError(w http.ResponseWriter, msg string) { setFlash(w, "!"+msg) }
 
 func (a *App) render(w http.ResponseWriter, r *http.Request, name, title, nav string, data any) {
 	p := page{Title: title, Panel: a.Store.Settings(), Nav: nav, Data: data}
+	if free, ok := backup.FreeSpace(a.Mgr.DataDir()); ok && free < lowDisk && nav != "" {
+		p.DiskFree = free
+	}
 	if c, err := r.Cookie(flashCookie); err == nil {
 		msg, _ := url.QueryUnescape(c.Value)
 		if strings.HasPrefix(msg, "!") {

@@ -104,13 +104,7 @@
     var form = document.getElementById("command-form");
     var input = form.querySelector("input");
     var history = [], pos = 0;
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      var cmd = input.value.trim();
-      if (!cmd) return;
-      history.push(cmd);
-      pos = history.length;
-      input.value = "";
+    var send = function (cmd) {
       fetch(form.action, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -120,6 +114,26 @@
         if (!r.ok) return r.text().then(function (t) { toast(t.trim()); });
       });
       box.scrollTop = box.scrollHeight;
+    };
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var cmd = input.value.trim();
+      if (!cmd) return;
+      history.push(cmd);
+      pos = history.length;
+      input.value = "";
+      send(cmd);
+    });
+    // Quick buttons either send a command straight away or start one in
+    // the box for the rest to be typed.
+    document.querySelectorAll("[data-cmd]").forEach(function (b) {
+      b.addEventListener("click", function () { send(b.getAttribute("data-cmd")); });
+    });
+    document.querySelectorAll("[data-fill]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        input.value = b.getAttribute("data-fill");
+        input.focus();
+      });
     });
     input.addEventListener("keydown", function (e) {
       if (e.key === "ArrowUp" && pos > 0) { pos--; input.value = history[pos]; e.preventDefault(); }

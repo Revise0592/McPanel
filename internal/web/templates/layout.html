@@ -25,6 +25,7 @@
 </header>
 {{end}}
 <main class="wrap">
+  {{if .DiskFree}}<div class="flash error" role="alert">The disk is nearly full: {{size .DiskFree}} left. Saving worlds and making backups can fail. Delete old backups, including <a href="/backups/deleted">those of deleted servers</a>, or free up space.</div>{{end}}
   {{if .Flash}}<div class="flash {{if .FlashErr}}error{{end}}" role="status">{{.Flash}}</div>{{end}}
   {{template "content" .}}
 </main>

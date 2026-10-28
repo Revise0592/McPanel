@@ -62,6 +62,17 @@
       {{if $v.Bedrock}}<p class="muted small" style="margin-top:.5rem">Bedrock lists operators by Xbox ID. The player must have joined once, and the server must be running.</p>{{end}}
     </div>
 
+    <div class="card">
+      <h2>Recently played</h2>
+      <ul class="list">
+      {{range $v.Recent}}
+        <li><img class="head" src="{{headURL $v.Type .Name}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.Name}}</span>
+          <span class="muted small" title="{{date .Seen}}">{{ago .Seen}}</span></li>
+      {{else}}<li class="none">Nobody yet.</li>{{end}}
+      </ul>
+      {{if $v.Bedrock}}<p class="muted small" style="margin-top:.5rem">Bedrock doesn't record this, so only players seen since McPanel last started are listed.</p>{{end}}
+    </div>
+
     {{if not $v.Bedrock}}
     <div class="card">
       <h2>Banned</h2>

@@ -9,6 +9,13 @@
       <input type="text" name="command" placeholder="Type a command, e.g. say Hello" aria-label="Console command">
       <button class="btn">Send</button>
     </form>
+    <div class="quick" aria-label="Quick commands">
+      <button type="button" class="btn small ghost" data-fill="say ">Say…</button>
+      <button type="button" class="btn small ghost" data-cmd="list">Who's on</button>
+      <button type="button" class="btn small ghost" data-cmd="time set day">Make it day</button>
+      <button type="button" class="btn small ghost" data-cmd="weather clear">Clear weather</button>
+      {{if isJava $v.Type}}<button type="button" class="btn small ghost" data-cmd="save-all">Save the world</button>{{end}}
+    </div>
   </div>
   <div class="stack">
     {{template "online-summary" $v}}

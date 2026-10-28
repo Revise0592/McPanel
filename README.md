@@ -8,10 +8,11 @@ configure and back up your servers from one page.
 
 - Paper, Vanilla, Fabric and Bedrock servers
 - Java is downloaded automatically
-- Live console, with CPU, memory and (on Paper) TPS
+- Live console with quick buttons, and CPU, memory and (on Paper) TPS
 - Settings as plain controls, or edit `server.properties` directly
 - Server icons
-- Players: who's online, kick, ops, bans and whitelist, with skin heads
+- Players: who's online and who played recently, kick, ops, bans and
+  whitelist, with skin heads
 - File browser: upload, download, new folders, delete, and edit config files
 - Backups: manual or scheduled, while the server runs; kept when a server
   is deleted. Restore everything or just the world, and keep copies in a
@@ -22,6 +23,8 @@ configure and back up your servers from one page.
 - Import a server or world from a zip
 - Restart on crash, start with the panel
 - Two-factor sign-in
+- Link to the BlueMap or Dynmap web map, and a warning when the disk is
+  nearly full
 - Light/dark theme, accent colour, panel name and logo
 
 ## Docker

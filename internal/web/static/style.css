@@ -195,6 +195,9 @@ a.tag.update:hover { text-decoration: underline; }
 .server-card dl { display: grid; grid-template-columns: auto 1fr; gap: .2rem .9rem; margin: 0; font-size: .9rem; }
 .server-card dt { color: var(--muted); }
 .server-card dd { margin: 0; }
+.quick { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .6rem; }
+.card-heads { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .2rem; margin-left: .4rem; vertical-align: middle; }
+.card-heads .head { width: 18px; height: 18px; border-radius: 3px; image-rendering: pixelated; }
 .usage { display: flex; flex-wrap: wrap; gap: .25rem 1rem; color: var(--muted); }
 .server-header .usage { margin-top: .3rem; }
 .usage .warn { color: var(--warn); }

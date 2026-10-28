@@ -42,7 +42,9 @@
   <dl>
     <dt>Type</dt><dd>{{typeLabel .Type}} {{.Version}}{{if or .NewBuild .AddonUpdates}} <span class="tag update">Update available</span>{{end}}</dd>
     <dt>Address</dt><dd>{{if .Address}}<span class="mono">{{.Address}}</span>{{else}}<span class="muted">Not set yet</span>{{end}}</dd>
-    <dt>Players</dt><dd>{{if .Status.Online}}{{len .Status.Players}} online{{else}}<span class="muted">-</span>{{end}}</dd>
+    <dt>Players</dt><dd>{{if .Status.Online}}{{len .Status.Players}} online{{if .Status.Players}}
+      <span class="card-heads">{{range $i, $p := .Status.Players}}{{if lt $i 8}}<img class="head" src="{{headURL $.Type $p}}" alt="{{$p}}" title="{{$p}}" width="18" height="18" loading="lazy">{{end}}{{end}}{{if gt (len .Status.Players) 8}}<span class="muted small">+{{len (slice .Status.Players 8)}}</span>{{end}}</span>{{end}}
+      {{else}}<span class="muted">-</span>{{end}}</dd>
     {{if .HasUsage}}<dt>Usage</dt><dd>{{template "usage" .}}</dd>{{end}}
   </dl>
   <div class="row">
@@ -72,6 +74,7 @@
       {{if .Address}}<span>·</span><span class="mono">{{.Address}}</span>
       <button class="btn ghost small" type="button" data-copy="{{.Address}}">Copy</button>{{end}}
       {{if and .Status.Online (eq .Status.State "running")}}<span>· up {{since .Status.StartedAt}}</span>{{end}}
+      {{if .MapURL}}<span>·</span><a href="{{.MapURL}}" target="_blank" rel="noopener">Web map</a>{{end}}
       {{if .NewBuild}}<a class="tag update" href="/servers/{{.ID}}/settings?s=version">Update available</a>{{end}}
       {{if .AddonUpdates}}<a class="tag update" href="/servers/{{.ID}}/addons">{{len .AddonUpdates}} {{.AddonNoun}} update{{if gt (len .AddonUpdates) 1}}s{{end}}</a>{{end}}
     </div>

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -222,9 +223,18 @@ func (a *App) saveServerSettings(w http.ResponseWriter, r *http.Request) {
 		back(w, r, to)
 		return
 	}
+	mapURL := strings.TrimSpace(r.FormValue("mapURL"))
+	if u, err := url.Parse(mapURL); mapURL != "" && (err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "") {
+		setError(w, "The web map address should start with http:// or https://.")
+		back(w, r, to)
+		return
+	}
 	_, err := a.Store.UpdateServer(sv.ID, func(s *store.Server) {
 		s.Name = name
 		s.JoinAddress = joinAddress
+		if r.Form.Has("mapURL") {
+			s.MapURL = mapURL
+		}
 		s.AutoStart = r.FormValue("autoStart") == "on"
 		s.RestartOnCrash = r.FormValue("restartOnCrash") == "on"
 		if store.IsJava(s.Type) {

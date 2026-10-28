@@ -17,6 +17,7 @@ import (
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
 	"github.com/Revise0592/McPanel/internal/updates"
+	"github.com/Revise0592/McPanel/internal/webmap"
 )
 
 // serverView bundles everything a page needs about one server.
@@ -27,10 +28,15 @@ type serverView struct {
 	// AutoAddress is the address guessed from the panel's host and the
 	// server's port, used when no join address is set.
 	AutoAddress string
-	Port        int
-	AddonNoun   string
-	Tab         string
-	IconTime    int64 // server icon's change time; 0 when there is none
+	// Map is a web map plugin or mod, if one is set up; MapURL links to it
+	// and AutoMapURL is the guess used when no address is saved.
+	Map        webmap.Map
+	MapURL     string
+	AutoMapURL string
+	Port       int
+	AddonNoun  string
+	Tab        string
+	IconTime   int64 // server icon's change time; 0 when there is none
 	// NewBuild is a newer build of the installed version, if there is one.
 	NewBuild     string
 	Usage        mc.Usage
@@ -46,6 +52,11 @@ func (a *App) view(r *http.Request, sv store.Server) serverView {
 		v.Usage, v.HasUsage = inst.Usage()
 		if fi, err := os.Stat(iconFile(inst)); err == nil {
 			v.IconTime = fi.ModTime().Unix()
+		}
+		if m, ok := webmap.Find(inst.Dir()); ok {
+			v.Map = m
+			v.AutoMapURL = fmt.Sprintf("http://%s:%d", hostOnly(r), m.Port)
+			v.MapURL = cmp.Or(sv.MapURL, v.AutoMapURL)
 		}
 	}
 	if v.Port > 0 {

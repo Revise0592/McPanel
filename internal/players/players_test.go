@@ -1,7 +1,10 @@
 package players
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/Revise0592/McPanel/internal/store"
 )
@@ -37,5 +40,21 @@ func TestCommandQuoting(t *testing.T) {
 	}
 	if c := command(store.TypePaper, Bans, "Steve", false); c != "pardon Steve" {
 		t.Errorf("got %q", c)
+	}
+}
+
+func TestRecentPlayers(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "usercache.json"), []byte(`[
+		{"name":"Alex","uuid":"x","expiresOn":"2026-11-20 10:00:00 +0000"},
+		{"name":"Steve","uuid":"y","expiresOn":"2026-11-25 10:00:00 +0000"},
+		{"name":"Online","uuid":"z","expiresOn":"2026-11-26 10:00:00 +0000"}]`), 0o644)
+	seen := map[string]time.Time{"Alex": time.Date(2026, 10, 28, 9, 0, 0, 0, time.UTC)}
+	got := RecentPlayers(store.Server{Type: store.TypePaper}, dir, seen, []string{"Online"}, 10)
+	if len(got) != 2 || got[0].Name != "Alex" || got[1].Name != "Steve" {
+		t.Fatalf("RecentPlayers = %+v", got)
+	}
+	if want := time.Date(2026, 10, 25, 10, 0, 0, 0, time.UTC); !got[1].Seen.Equal(want) {
+		t.Errorf("Steve seen %v, want %v", got[1].Seen, want)
 	}
 }

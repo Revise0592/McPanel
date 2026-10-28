@@ -34,6 +34,13 @@
         <input type="text" id="joinAddress" name="joinAddress" value="{{$v.JoinAddress}}" class="mono" maxlength="260" placeholder="{{or $v.AutoAddress "e.g. play.example.com:25565"}}">
         <div class="help">Leave blank to use the panel's address. Set this if players connect through a proxy or a different domain.</div>
       </div>
+      {{if $v.Map.Name}}
+      <div class="field">
+        <label for="mapURL">{{$v.Map.Name}} web map address</label>
+        <input type="text" id="mapURL" name="mapURL" value="{{$v.Server.MapURL}}" class="mono" maxlength="300" placeholder="{{$v.AutoMapURL}}">
+        <div class="help">Leave blank to use the panel's address with the map's port. Set this if the map is behind a proxy, e.g. https://map.example.com.</div>
+      </div>
+      {{end}}
       {{if isJava $v.Type}}
       <div class="field">
         <label for="javaArgs">Extra Java options</label>

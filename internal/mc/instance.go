@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,6 +75,7 @@ type Instance struct {
 	players     map[string]time.Time
 	rejected    []string
 	lastPlayers time.Time
+	seen        map[string]time.Time // last time each player was online
 
 	// Resource use, see Usage.
 	paper    bool
@@ -85,7 +87,7 @@ type Instance struct {
 }
 
 func newInstance(m *Manager, id string) *Instance {
-	return &Instance{ID: id, m: m, state: Stopped, subs: map[chan string]struct{}{}, players: map[string]time.Time{}}
+	return &Instance{ID: id, m: m, state: Stopped, subs: map[chan string]struct{}{}, players: map[string]time.Time{}, seen: map[string]time.Time{}}
 }
 
 // Dir is the server's working directory.
@@ -139,6 +141,13 @@ func (i *Instance) Status() Status {
 	return st
 }
 
+// Seen returns when each player was last online since the panel started.
+func (i *Instance) Seen() map[string]time.Time {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	return maps.Clone(i.seen)
+}
+
 // LastPlayerActivity is the last time anyone was seen online.
 func (i *Instance) LastPlayerActivity() time.Time {
 	i.mu.Lock()
@@ -183,6 +192,7 @@ func (i *Instance) parseLocked(line string) {
 	for _, re := range []*regexp.Regexp{javaJoin, javaLogin, bedJoin} {
 		if m := re.FindStringSubmatch(line); m != nil {
 			i.players[m[1]] = time.Now()
+			i.seen[m[1]] = time.Now()
 			i.rejected = slices.DeleteFunc(i.rejected, func(s string) bool { return s == m[1] })
 			i.lastPlayers = time.Now()
 			return
@@ -191,6 +201,7 @@ func (i *Instance) parseLocked(line string) {
 	for _, re := range []*regexp.Regexp{javaLeave, bedLeave} {
 		if m := re.FindStringSubmatch(line); m != nil {
 			delete(i.players, m[1])
+			i.seen[m[1]] = time.Now()
 			i.lastPlayers = time.Now()
 			return
 		}
@@ -355,6 +366,9 @@ func (i *Instance) run(def store.Server) {
 	i.cmd, i.stdin = nil, nil
 	if len(i.players) > 0 {
 		i.lastPlayers = time.Now()
+	}
+	for p := range i.players {
+		i.seen[p] = time.Now()
 	}
 	clear(i.players)
 	requested := i.stopReq

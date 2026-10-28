@@ -55,7 +55,10 @@ type Server struct {
 	JavaArgs   string `json:"javaArgs,omitempty"`
 	// JoinAddress is the address players connect to, when it differs from
 	// the panel's own host and the server's port (e.g. behind a proxy).
-	JoinAddress      string `json:"joinAddress,omitempty"`
+	JoinAddress string `json:"joinAddress,omitempty"`
+	// MapURL is where the server's web map (BlueMap, Dynmap) is reached,
+	// when it differs from the panel's host and the map's port.
+	MapURL           string `json:"mapURL,omitempty"`
 	AutoStart        bool   `json:"autoStart"`
 	RestartOnCrash   bool   `json:"restartOnCrash"`
 	BackupEveryHours int    `json:"backupEveryHours"`
