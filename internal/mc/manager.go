@@ -163,7 +163,7 @@ func (m *Manager) install(id string, before func(*Instance) error, run installFu
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
-	res, err := run(ctx, def, inst)
+	res, err := run(install.WithProgress(ctx, inst.SetProgress), def, inst)
 	if err != nil {
 		inst.Logf("Install failed: %v", err)
 		return err

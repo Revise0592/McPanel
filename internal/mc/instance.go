@@ -64,6 +64,7 @@ type Instance struct {
 	mu          sync.Mutex
 	state       State
 	task        string
+	progress    int // percent done of task, -1 when unknown
 	cmd         *exec.Cmd
 	stdin       io.WriteCloser
 	done        chan struct{}
@@ -103,6 +104,7 @@ func (i *Instance) Def() (store.Server, error) { return i.m.store.Server(i.ID) }
 type Status struct {
 	State     State
 	Task      string
+	Progress  int // percent done of Task, -1 when unknown
 	Players   []string
 	Rejected  []string
 	StartedAt time.Time
@@ -133,7 +135,7 @@ func (s Status) Label() string {
 func (i *Instance) Status() Status {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	st := Status{State: i.state, Task: i.task, StartedAt: i.startedAt, Rejected: slices.Clone(i.rejected)}
+	st := Status{State: i.state, Task: i.task, Progress: i.progress, StartedAt: i.startedAt, Rejected: slices.Clone(i.rejected)}
 	for p := range i.players {
 		st.Players = append(st.Players, p)
 	}
@@ -250,13 +252,29 @@ func (i *Instance) BeginTask(name string) error {
 		return fmt.Errorf("busy: %s", strings.ToLower(i.task))
 	}
 	i.task = name
+	i.progress = -1
 	return nil
+}
+
+// SetProgress records how far the current job has got. A total of zero or
+// less means the size isn't known.
+func (i *Instance) SetProgress(done, total int64) {
+	pct := -1
+	if total > 0 {
+		pct = int(min(done*100/total, 100))
+	}
+	i.mu.Lock()
+	if i.task != "" {
+		i.progress = pct
+	}
+	i.mu.Unlock()
 }
 
 // EndTask clears the current job.
 func (i *Instance) EndTask() {
 	i.mu.Lock()
 	i.task = ""
+	i.progress = -1
 	i.mu.Unlock()
 }
 

@@ -25,6 +25,14 @@ var client = &http.Client{Timeout: 30 * time.Minute}
 // Logf receives human-readable progress messages.
 type Logf func(format string, args ...any)
 
+type progressKey struct{}
+
+// WithProgress returns a context whose downloads report bytes done and the
+// total size (zero when unknown) to fn.
+func WithProgress(ctx context.Context, fn func(done, total int64)) context.Context {
+	return context.WithValue(ctx, progressKey{}, fn)
+}
+
 func get(ctx context.Context, url string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -114,6 +122,7 @@ func Download(ctx context.Context, url, dst string, sum Checksum, logf Logf) err
 		w = io.MultiWriter(out, h)
 	}
 	pr := &progress{r: resp.Body, total: resp.ContentLength, logf: logf, name: filepath.Base(dst)}
+	pr.fn, _ = ctx.Value(progressKey{}).(func(done, total int64))
 	_, err = io.Copy(w, pr)
 	if cerr := out.Close(); err == nil {
 		err = cerr
@@ -138,11 +147,15 @@ type progress struct {
 	last  time.Time
 	logf  Logf
 	name  string
+	fn    func(done, total int64)
 }
 
 func (p *progress) Read(b []byte) (int, error) {
 	n, err := p.r.Read(b)
 	p.done += int64(n)
+	if p.fn != nil {
+		p.fn(p.done, p.total)
+	}
 	if p.logf != nil && time.Since(p.last) > 2*time.Second {
 		p.last = time.Now()
 		if p.total > 0 {

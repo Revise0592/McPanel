@@ -137,7 +137,7 @@ main.wrap { padding-block: 1.5rem 3rem; }
 .btn.danger { color: var(--bad); }
 .btn.danger.solid { background: var(--bad); border-color: var(--bad); color: #fff; }
 .btn.small { padding: .3rem .65rem; font-size: .85rem; }
-.btn.ghost { border-color: transparent; background: none; }
+.btn.ghost { border-color: var(--border); background: var(--surface); }
 .btn.ghost:hover { background: var(--surface-2); }
 form.inline { display: inline; }
 
@@ -184,6 +184,12 @@ input[type=color] { width: 3rem; height: 2.3rem; padding: 0; border: 1px solid v
 .badge.starting::before, .badge.stopping::before, .badge.busy::before { background: var(--warn); }
 .badge.crashed { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
 .badge.crashed::before { background: var(--bad); }
+.task-progress { display: flex; flex-direction: column; gap: .3rem; margin-top: .5rem; max-width: 26rem; color: var(--muted); }
+.task-progress .bar { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.task-progress .bar > div { height: 100%; border-radius: inherit; background: var(--accent); transition: width .6s ease; }
+.task-progress .bar.unknown > div { animation: task-slide 1.4s ease-in-out infinite; }
+@keyframes task-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+@media (prefers-reduced-motion: reduce) { .task-progress .bar.unknown > div { animation: none; width: 100% !important; opacity: .4; } }
 .tag { font-size: .78rem; padding: .1rem .5rem; border-radius: 6px; background: var(--surface-2); color: var(--muted); font-weight: 550; }
 .tag.update { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); white-space: nowrap; }
 a.tag.update:hover { text-decoration: underline; }

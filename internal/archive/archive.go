@@ -37,6 +37,30 @@ func stripComponents(name string, n int) string {
 // should be left alone instead of being written.
 type SkipFunc func(name string) bool
 
+// ProgressFunc is told how many bytes of total have been handled so far.
+type ProgressFunc func(done, total int64)
+
+// counter counts bytes passing through and reports them to fn.
+type counter struct {
+	r     io.Reader
+	done  int64
+	total int64
+	fn    ProgressFunc
+}
+
+func (c *counter) Read(b []byte) (int, error) {
+	n, err := c.r.Read(b)
+	c.add(int64(n))
+	return n, err
+}
+
+func (c *counter) add(n int64) {
+	c.done += n
+	if c.fn != nil {
+		c.fn(c.done, c.total)
+	}
+}
+
 // ExtractZip extracts src into dir. Entries for which skip returns true
 // are not written.
 func ExtractZip(src, dir string, skip SkipFunc) error {
@@ -81,13 +105,18 @@ func ExtractZip(src, dir string, skip SkipFunc) error {
 }
 
 // ExtractTarGz extracts src into dir, dropping the first strip path components.
-func ExtractTarGz(src, dir string, strip int) error {
+// prog, if set, follows how much of src has been read.
+func ExtractTarGz(src, dir string, strip int, prog ProgressFunc) error {
 	f, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	gz, err := gzip.NewReader(f)
+	var size int64
+	if info, err := f.Stat(); err == nil {
+		size = info.Size()
+	}
+	gz, err := gzip.NewReader(&counter{r: f, total: size, fn: prog})
 	if err != nil {
 		return err
 	}
@@ -163,8 +192,13 @@ func writeFile(dst string, r io.Reader, mode os.FileMode) error {
 
 // CreateTarGz writes the given top-level entries of dir into a tar.gz at dst.
 // Paths (slash-separated, relative to dir) for which skip returns true are
-// left out, along with everything under them.
-func CreateTarGz(dst, dir string, entries []string, skip SkipFunc) error {
+// left out, along with everything under them. prog, if set, follows how many
+// bytes of file data have been written.
+func CreateTarGz(dst, dir string, entries []string, skip SkipFunc, prog ProgressFunc) error {
+	c := &counter{fn: prog}
+	if prog != nil {
+		c.total = treeSize(dir, entries, skip)
+	}
 	tmp := dst + ".partial"
 	out, err := os.Create(tmp)
 	if err != nil {
@@ -222,6 +256,7 @@ func CreateTarGz(dst, dir string, entries []string, skip SkipFunc) error {
 				if err == io.EOF && n < h.Size {
 					_, err = io.CopyN(tw, zeroReader{}, h.Size-n)
 				}
+				c.add(h.Size)
 				return err
 			})
 			if err != nil {
@@ -241,6 +276,29 @@ func CreateTarGz(dst, dir string, entries []string, skip SkipFunc) error {
 		return werr
 	}
 	return os.Rename(tmp, dst)
+}
+
+// treeSize adds up the regular files CreateTarGz would include.
+func treeSize(dir string, entries []string, skip SkipFunc) int64 {
+	var total int64
+	for _, e := range entries {
+		filepath.Walk(filepath.Join(dir, e), func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if rel, err := filepath.Rel(dir, path); err == nil && skip != nil && skip(filepath.ToSlash(rel)) {
+				if info.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if info.Mode().IsRegular() {
+				total += info.Size()
+			}
+			return nil
+		})
+	}
+	return total
 }
 
 type zeroReader struct{}

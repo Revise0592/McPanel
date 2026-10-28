@@ -197,7 +197,7 @@ func create(dataDir string, inst *mc.Instance, label string) (Backup, error) {
 	}
 	name += ".tar.gz"
 	dst := filepath.Join(Dir(dataDir, def.ID), name)
-	if err := archive.CreateTarGz(dst, inst.Dir(), ents, skipNested); err != nil {
+	if err := archive.CreateTarGz(dst, inst.Dir(), ents, skipNested, inst.SetProgress); err != nil {
 		return Backup{}, err
 	}
 	info, err := os.Stat(dst)
@@ -264,7 +264,7 @@ func Restore(dataDir string, inst *mc.Instance, name string, worldOnly bool) err
 	}
 	tmp := filepath.Join(inst.Dir(), ".mcpanel-restore")
 	os.RemoveAll(tmp)
-	if err := archive.ExtractTarGz(src, tmp, 0); err != nil {
+	if err := archive.ExtractTarGz(src, tmp, 0, inst.SetProgress); err != nil {
 		os.RemoveAll(tmp)
 		return err
 	}

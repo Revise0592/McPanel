@@ -61,7 +61,7 @@ func TestExtractTarGzRejectsSymlinkEscape(t *testing.T) {
 	tw.Close()
 	gz.Close()
 	f.Close()
-	if err := ExtractTarGz(src, filepath.Join(dir, "out"), 0); err == nil {
+	if err := ExtractTarGz(src, filepath.Join(dir, "out"), 0, nil); err == nil {
 		t.Fatal("expected an error for a symlink leaving the target")
 	}
 }
@@ -77,7 +77,7 @@ func TestTarGzRoundTrip(t *testing.T) {
 
 	dst := filepath.Join(dir, "b.tar.gz")
 	skip := func(rel string) bool { return rel == "plugins/.paper-remapped" }
-	if err := CreateTarGz(dst, src, []string{"world", "plugins"}, skip); err != nil {
+	if err := CreateTarGz(dst, src, []string{"world", "plugins"}, skip, nil); err != nil {
 		t.Fatal(err)
 	}
 	tops, err := TopLevel(dst)
@@ -85,7 +85,7 @@ func TestTarGzRoundTrip(t *testing.T) {
 		t.Fatalf("TopLevel = %v, %v", tops, err)
 	}
 	out := filepath.Join(dir, "out")
-	if err := ExtractTarGz(dst, out, 0); err != nil {
+	if err := ExtractTarGz(dst, out, 0, nil); err != nil {
 		t.Fatal(err)
 	}
 	if b, _ := os.ReadFile(filepath.Join(out, "world", "region", "r.0.0.mca")); string(b) != "chunk" {

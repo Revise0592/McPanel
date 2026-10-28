@@ -36,7 +36,7 @@ func JavaPath(ctx context.Context, dataDir string, major int, logf Logf) (string
 	defer os.Remove(tgz)
 	tmp := dir + ".tmp"
 	os.RemoveAll(tmp)
-	if err := archive.ExtractTarGz(tgz, tmp, 1); err != nil {
+	if err := archive.ExtractTarGz(tgz, tmp, 1, nil); err != nil {
 		os.RemoveAll(tmp)
 		return "", fmt.Errorf("unpack Java %d: %w", major, err)
 	}
