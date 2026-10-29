@@ -4,26 +4,25 @@ A simple, self-hosted web panel for running Minecraft servers. It downloads the
 server software and the right Java version for you, then lets you start, stop,
 configure and back up your servers from one page.
 
-<p align="center">
-  <img src="docs/screenshots/desktop-console.png" alt="The console page: live log, command box, quick buttons, and CPU, memory and TPS charts" width="900">
-</p>
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/desktop-console.png" alt="Console, with performance charts" width="420"><br><sub>Console, with performance charts</sub></td>
+    <td align="center"><img src="docs/screenshots/desktop-players.png" alt="Players" width="420"><br><sub>Players</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/desktop-plugins.png" alt="Plugins and Bedrock support" width="420"><br><sub>Plugins and Bedrock support</sub></td>
+    <td align="center"><img src="docs/screenshots/desktop-settings.png" alt="Server settings" width="420"><br><sub>Server settings</sub></td>
+  </tr>
+</table>
 
-<p align="center">
-  <img src="docs/screenshots/mobile-dashboard.png" alt="Server list on a phone" width="200">
-  <img src="docs/screenshots/mobile-console.png" alt="Console on a phone, with the tab bar along the bottom" width="200">
-  <img src="docs/screenshots/mobile-players.png" alt="Recently played players on a phone" width="200">
-  <img src="docs/screenshots/mobile-more.png" alt="The More menu on a phone" width="200">
-</p>
-
-<details>
-<summary>More screenshots</summary>
-
-![Server list](docs/screenshots/desktop-dashboard.png)
-![Players: online, whitelist, operators and recently played](docs/screenshots/desktop-players.png)
-![Plugins from Modrinth, and one-click Bedrock support](docs/screenshots/desktop-plugins.png)
-![Server settings](docs/screenshots/desktop-settings.png)
-
-</details>
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/mobile-dashboard.png" alt="Servers" width="200"><br><sub>Servers</sub></td>
+    <td align="center"><img src="docs/screenshots/mobile-console.png" alt="Console" width="200"><br><sub>Console</sub></td>
+    <td align="center"><img src="docs/screenshots/mobile-players.png" alt="Recently played" width="200"><br><sub>Recently played</sub></td>
+    <td align="center"><img src="docs/screenshots/mobile-more.png" alt="More menu" width="200"><br><sub>More menu</sub></td>
+  </tr>
+</table>
 
 ## Features
 
