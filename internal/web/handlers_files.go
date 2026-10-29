@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Revise0592/McPanel/internal/backup"
+	"github.com/Revise0592/McPanel/internal/diskuse"
 	"github.com/Revise0592/McPanel/internal/files"
 	"github.com/Revise0592/McPanel/internal/props"
 	"github.com/Revise0592/McPanel/internal/store"
@@ -245,4 +247,52 @@ func parentOf(rel string) string {
 		return p
 	}
 	return ""
+}
+
+type diskData struct {
+	ID string
+	diskuse.Report
+	Free    int64
+	HasFree bool
+}
+
+// Width is a bar's length, as a percentage of the biggest part.
+func (d diskData) Width(n int64) int {
+	most := d.Backups
+	if len(d.Parts) > 0 {
+		most = max(most, d.Parts[0].Size)
+	}
+	if most <= 0 {
+		return 0
+	}
+	return int(max(1, n*100/most))
+}
+
+// diskUsage measures the server's folder. Big worlds take a moment, so the
+// Files page loads it separately.
+func (a *App) diskUsage(w http.ResponseWriter, r *http.Request) {
+	sv, inst, ok := a.load(w, r)
+	if !ok {
+		return
+	}
+	d := diskData{ID: sv.ID, Report: diskuse.Measure(sv.Type, inst.Dir(), backup.Dir(a.Mgr.DataDir(), sv.ID))}
+	d.Free, d.HasFree = backup.FreeSpace(a.Mgr.DataDir())
+	a.partial(w, "disk-usage", d)
+}
+
+func (a *App) clearOldLogs(w http.ResponseWriter, r *http.Request) {
+	sv, inst, ok := a.load(w, r)
+	if !ok {
+		return
+	}
+	freed, err := diskuse.ClearOldLogs(inst.Dir())
+	switch {
+	case err != nil:
+		setError(w, fmt.Sprintf("Freed %s, but some files couldn't be deleted: %v", backup.HumanSize(freed), err))
+	case freed == 0:
+		setFlash(w, "There were no old logs to delete.")
+	default:
+		setFlash(w, "Deleted old logs and crash reports, freeing "+backup.HumanSize(freed)+".")
+	}
+	back(w, r, filesURL(sv.ID, ""))
 }

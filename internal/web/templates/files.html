@@ -38,6 +38,9 @@
   </div>
 
   <div class="stack">
+    {{if not $v.Path}}<div class="card" hx-get="/servers/{{$v.ID}}/files/usage" hx-trigger="load" hx-swap="outerHTML">
+      <h2>Disk use</h2><p class="muted">Measuring…</p>
+    </div>{{end}}
     <form class="card" method="post" enctype="multipart/form-data" action="/servers/{{$v.ID}}/files/upload{{if $v.Path}}?path={{$v.Path}}{{end}}" data-busy="Uploading…">
       <h2>Upload</h2>
       <div class="field">

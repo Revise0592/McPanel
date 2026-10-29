@@ -19,6 +19,8 @@ services:
       - "8080:8080/tcp"          # panel
       - "25565-25575:25565-25575/tcp"  # Java servers
       - "19132-19141:19132-19141/udp"  # Bedrock servers (IPv4 + IPv6 port each)
+      # Bedrock players on Paper servers (Geyser) need TCP on their port too.
+      - "19132-19141:19132-19141/tcp"
     volumes:
       # On SELinux hosts (Fedora, RHEL) add :Z, e.g. ./data:/data:Z
       - ./data:/data

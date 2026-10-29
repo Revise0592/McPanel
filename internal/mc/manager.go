@@ -230,6 +230,9 @@ func (m *Manager) UsedPorts(skipID string) map[int]string {
 				used[p+1] = sv.Name
 			}
 		}
+		if sv.BedrockPort > 0 {
+			used[sv.BedrockPort] = sv.Name + " (for Bedrock players)"
+		}
 	}
 	return used
 }

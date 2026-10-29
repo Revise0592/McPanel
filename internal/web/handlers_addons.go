@@ -9,6 +9,7 @@ import (
 
 	"github.com/Revise0592/McPanel/internal/activity"
 	"github.com/Revise0592/McPanel/internal/addons"
+	"github.com/Revise0592/McPanel/internal/geyser"
 	"github.com/Revise0592/McPanel/internal/install"
 )
 
@@ -16,6 +17,8 @@ type addonsData struct {
 	serverView
 	Addons []addons.Addon
 	Folder string
+	// Geyser is set on servers that can take Bedrock players.
+	Geyser *geyser.Status
 }
 
 // Update returns the pending update for an add-on, if any.
@@ -40,6 +43,10 @@ func (a *App) addonsPage(w http.ResponseWriter, r *http.Request) {
 	}
 	list, _ := addons.List(sv.Type, inst.Dir())
 	d := addonsData{serverView: a.view(r, sv), Addons: list, Folder: addons.Folder(sv.Type)}
+	if geyser.Supported(sv.Type) {
+		st := geyser.Find(inst.Dir())
+		d.Geyser = &st
+	}
 	d.Tab = "addons"
 	a.render(w, r, "addons", sv.Name+" "+addons.Noun(sv.Type)+"s", "servers", d)
 }

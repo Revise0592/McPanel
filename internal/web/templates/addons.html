@@ -3,6 +3,39 @@
 {{template "server-header" $v}}
 {{template "server-tabs" $v}}
 <div class="stack" data-reload-after-task>
+  {{with $v.Geyser}}
+  <div class="card">
+    <div class="card-head">
+      <h2>Bedrock players</h2>
+      {{if .On}}<span class="tag on">On</span>{{else if .Geyser.File}}<span class="tag">Turned off</span>{{end}}
+    </div>
+    <p class="desc">Lets people on phones, tablets, consoles and Windows (Minecraft Bedrock Edition) join this Java server. McPanel installs the Geyser and Floodgate plugins; Bedrock players don't need a Java account.</p>
+    {{if .Geyser.File}}
+      <dl class="facts">
+        <dt>Installed</dt><dd>{{.Geyser.Title}} {{.Geyser.Version}}{{if .Floodgate.File}}, {{.Floodgate.Title}} {{.Floodgate.Version}}{{else}} <span class="tag">Floodgate missing</span>{{end}}</dd>
+        {{if $v.BedrockAddress}}<dt>Bedrock players join</dt><dd><span class="mono">{{$v.BedrockAddress}}</span></dd>{{end}}
+      </dl>
+      <form class="row" method="post" action="/servers/{{$v.ID}}/bedrock" style="margin-top:1rem">
+        <input type="hidden" name="action" value="port">
+        <label for="bedrock-port" class="small">Port</label>
+        <input type="number" id="bedrock-port" name="port" value="{{$v.BedrockPort}}" min="1" max="65535" style="max-width:7rem">
+        <button class="btn small">Save port</button>
+      </form>
+      <p class="muted small" style="margin-top:.75rem">For players outside your network, forward port {{$v.BedrockPort}} for both UDP and TCP on your router. With the whitelist on, add Bedrock players in the console with <code>fwhitelist add &lt;gamertag&gt;</code>. Their names start with a dot, like <code>.Steve</code>.</p>
+      <div class="row" style="margin-top:.75rem">
+        <form class="inline" method="post" action="/servers/{{$v.ID}}/bedrock"><input type="hidden" name="action" value="install">
+          <button class="btn small" title="Bedrock Edition updates often; Geyser needs updating to keep up">{{if .Floodgate.File}}Update to the newest{{else}}Reinstall{{end}}</button></form>
+        <form class="inline" method="post" action="/servers/{{$v.ID}}/bedrock" data-confirm="Remove Geyser and Floodgate? Bedrock players won't be able to join. Their settings folders are kept."><input type="hidden" name="action" value="remove">
+          <button class="btn small ghost danger">Turn off</button></form>
+      </div>
+    {{else}}
+      <form class="inline" method="post" action="/servers/{{$v.ID}}/bedrock"><input type="hidden" name="action" value="install">
+        <button class="btn primary">Let Bedrock players join</button></form>
+      <p class="muted small" style="margin-top:.75rem">Geyser supports recent Minecraft versions; older servers also need the ViaVersion plugin. Bedrock players use port {{if $v.BedrockPort}}{{$v.BedrockPort}}{{else}}19132 or the next free one{{end}}.</p>
+    {{end}}
+  </div>
+  {{end}}
+
   <div class="card">
     <div class="card-head">
       <h2>Installed {{$v.AddonNoun}}s</h2>

@@ -7,6 +7,9 @@ import (
 	"time"
 
 	"github.com/Revise0592/McPanel/internal/activity"
+	"github.com/Revise0592/McPanel/internal/addons"
+	"github.com/Revise0592/McPanel/internal/diskuse"
+	"github.com/Revise0592/McPanel/internal/geyser"
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
 )
@@ -38,6 +41,25 @@ func TestRenderServerPages(t *testing.T) {
 	pages := map[string]any{
 		"console":  consoleData{activityData: activityData{serverView: v, Events: events, More: true}, Performance: usage},
 		"activity": activityData{serverView: v, Events: events},
+		"settings": settingsData{serverView: v, Section: "general", Memory: []int{2048, 4096}, HostMB: 4096, OthersMB: 2048},
+		"files":    filesData{serverView: v},
+	}
+	bv := v
+	bv.BedrockPort, bv.BedrockAddress = 19132, "localhost port 19132"
+	for _, st := range []geyser.Status{{}, {Geyser: addons.Addon{File: "Geyser-Spigot.jar", Title: "Geyser", Version: "2.12.1", Enabled: true}}} {
+		w := httptest.NewRecorder()
+		a.render(w, httptest.NewRequest("GET", "/", nil), "addons", "t", "servers", addonsData{serverView: bv, Geyser: &st})
+		if w.Code != 200 || !strings.Contains(w.Body.String(), "Bedrock players") {
+			t.Errorf("addons with Geyser %+v: status %d: %s", st, w.Code, w.Body)
+		}
+	}
+	for _, d := range []diskData{{ID: "s"}, {ID: "s", HasFree: true, Free: 1 << 30,
+		Report: diskuse.Report{Parts: []diskuse.Part{{Label: "World", Size: 100}}, Total: 100, Backups: 10, OldLogs: 5}}} {
+		w := httptest.NewRecorder()
+		a.partial(w, "disk-usage", d)
+		if w.Code != 200 {
+			t.Errorf("disk-usage: status %d: %s", w.Code, w.Body)
+		}
 	}
 	for name, data := range pages {
 		w := httptest.NewRecorder()

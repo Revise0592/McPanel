@@ -26,6 +26,7 @@
           <select id="memory" name="memory">
             {{range $v.Memory}}<option value="{{.}}" {{if eq . $v.MemoryMB}}selected{{end}}>{{gb .}}</option>{{end}}
           </select>
+          {{if $v.HostMB}}<div class="help{{if $v.MemoryWarning}} warn{{end}}">This computer has {{gb $v.HostMB}}.{{if $v.OthersMB}} Your other servers are set to use {{gb $v.OthersMB}}.{{end}}{{if $v.MemoryWarning}} That leaves too little for Java and the system; lower this, or don't run them all at once.{{end}}</div>{{end}}
         </div>
         {{end}}
       </div>
@@ -43,8 +44,12 @@
       {{end}}
       {{if isJava $v.Type}}
       <div class="field">
+        <label class="check"><input type="checkbox" name="tunedFlags" {{if $v.TunedFlags}}checked{{end}}>
+          <span><strong>Use recommended Java settings</strong><span class="help" style="display:block">Aikar's flags, as suggested by Paper. They make lag spikes from memory clean-up shorter. The server takes all of its memory as soon as it starts.</span></span></label>
+      </div>
+      <div class="field">
         <label for="javaArgs">Extra Java options</label>
-        <input type="text" id="javaArgs" name="javaArgs" value="{{$v.JavaArgs}}" class="mono" placeholder="Optional, e.g. -XX:+UseG1GC">
+        <input type="text" id="javaArgs" name="javaArgs" value="{{$v.JavaArgs}}" class="mono" placeholder="Optional, e.g. -Dfile.encoding=UTF-8">
         <div class="help">Uses Java {{$v.JavaMajor}}, downloaded automatically.</div>
       </div>
       {{end}}

@@ -5,6 +5,14 @@
 <div class="split">
   <div class="stack">
   <div class="card">
+    <div class="console-bar">
+      <span class="seg-links" role="group" aria-label="Show in the console">
+        <button type="button" data-filter="" aria-pressed="true">Everything</button>
+        <button type="button" data-filter="nochat" aria-pressed="false">Hide chat</button>
+        <button type="button" data-filter="problems" aria-pressed="false">Only problems</button>
+      </span>
+      <span class="muted small">Tab completes player names. Up and down go through earlier commands.</span>
+    </div>
     <pre class="console" id="console" data-stream="/servers/{{$v.ID}}/console/stream" aria-live="polite"></pre>
     <form class="command" id="command-form" method="post" action="/servers/{{$v.ID}}/command" autocomplete="off">
       <input type="text" name="command" placeholder="Type a command, e.g. say Hello" aria-label="Console command">
@@ -28,7 +36,8 @@
       {{if $v.Address}}
       <p>In Minecraft, add a server with this address:</p>
       <p><span class="mono">{{$v.Address}}</span></p>
-      <p class="muted small">This address works on your own network. For friends elsewhere, forward port {{$v.Port}} ({{if eq $v.Type "bedrock"}}UDP{{else}}TCP{{end}}) on your router and use your public IP.</p>
+      {{if $v.BedrockAddress}}<p>On Bedrock Edition, add a server with <span class="mono">{{$v.BedrockAddress}}</span>.</p>{{end}}
+      <p class="muted small">This address works on your own network. For friends elsewhere, forward port {{$v.Port}} ({{if eq $v.Type "bedrock"}}UDP{{else}}TCP{{end}}){{if $v.BedrockAddress}} and port {{$v.BedrockPort}} (UDP and TCP){{end}} on your router and use your public IP.</p>
       {{else}}<p class="muted">Available once the server is installed.</p>{{end}}
     </div>
   </div>

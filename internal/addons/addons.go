@@ -422,5 +422,18 @@ func Remove(typ, serverDir, file string) error {
 	return saveMeta(serverDir, m)
 }
 
+// Note records the title and version of a jar McPanel got from somewhere
+// other than Modrinth, so the list shows them instead of the file name.
+func Note(serverDir, file, title, version string) error {
+	if err := checkFile(file); err != nil {
+		return err
+	}
+	metaMu.Lock()
+	defer metaMu.Unlock()
+	m := loadMeta(serverDir)
+	m[strings.TrimSuffix(file, ".disabled")] = meta{Title: title, Version: version}
+	return saveMeta(serverDir, m)
+}
+
 // Folder returns the add-on directory name for display.
 func Folder(typ string) string { return folder(typ) }

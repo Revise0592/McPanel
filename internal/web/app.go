@@ -213,6 +213,8 @@ func (a *App) Handler() http.Handler {
 	p("POST /servers/{id}/files/delete", a.deleteFile)
 	p("GET /servers/{id}/files/edit", a.editFilePage)
 	p("POST /servers/{id}/files/edit", a.saveFile)
+	p("GET /servers/{id}/files/usage", a.diskUsage)
+	p("POST /servers/{id}/files/clear-logs", a.clearOldLogs)
 
 	p("GET /servers/{id}/addons", a.addonsPage)
 	p("GET /servers/{id}/addons/search", a.addonsSearch)
@@ -220,6 +222,7 @@ func (a *App) Handler() http.Handler {
 	p("POST /servers/{id}/addons/update", a.addonsUpdate)
 	p("POST /servers/{id}/addons/toggle", a.addonsToggle)
 	p("POST /servers/{id}/addons/remove", a.addonsRemove)
+	p("POST /servers/{id}/bedrock", a.bedrockAction)
 
 	p("GET /settings", a.panelSettingsPage("appearance"))
 	p("GET /settings/account", a.panelSettingsPage("account"))

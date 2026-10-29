@@ -116,11 +116,16 @@
   var box = document.getElementById("console");
   if (box) {
     var maxLines = 2000;
+    var lastClass = "";
     var classify = function (line) {
+      // Stack traces and other follow-on lines take the class of the line
+      // they belong to, so "Only problems" shows them whole.
+      if ((lastClass === "err" || lastClass === "warn") && /^(\s|Caused by:|\.\.\. \d+ more)/.test(line)) return lastClass;
       if (line.indexOf("[McPanel] > ") === 0) return "cmd";
       if (line.indexOf("[McPanel]") === 0) return "panel";
       if (/\b(ERROR|SEVERE|Exception)\b/.test(line)) return "err";
       if (/\bWARN(ING)?\b/.test(line)) return "warn";
+      if (/\]: (\[Not Secure\] )?<[^>\s]+> /.test(line)) return "chat";
       return "";
     };
     var nearBottom = function () { return box.scrollHeight - box.scrollTop - box.clientHeight < 40; };
@@ -128,14 +133,35 @@
       var stick = nearBottom();
       var div = document.createElement("div");
       var c = classify(line);
+      lastClass = c;
       if (c) div.className = c;
       div.textContent = line;
       box.appendChild(div);
       while (box.childNodes.length > maxLines) box.removeChild(box.firstChild);
       if (stick) box.scrollTop = box.scrollHeight;
     };
+    // Filter buttons hide chat, or everything but warnings and errors. The
+    // choice is remembered in this browser.
+    var filterKey = "mcpanel-console-filter";
+    var setFilter = function (f) {
+      box.setAttribute("data-filter", f);
+      document.querySelectorAll("[data-filter]").forEach(function (b) {
+        if (b !== box) b.setAttribute("aria-pressed", b.getAttribute("data-filter") === f);
+      });
+      box.scrollTop = box.scrollHeight;
+    };
+    document.querySelectorAll("button[data-filter]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var f = b.getAttribute("data-filter");
+        try { localStorage.setItem(filterKey, f); } catch (err) {}
+        setFilter(f);
+      });
+    });
+    try { setFilter(localStorage.getItem(filterKey) || ""); } catch (err) { setFilter(""); }
+
     var connect = function () {
       box.textContent = "";
+      lastClass = "";
       var es = new EventSource(box.getAttribute("data-stream"));
       es.onmessage = function (e) { add(e.data); };
       es.onerror = function () {
@@ -147,7 +173,12 @@
 
     var form = document.getElementById("command-form");
     var input = form.querySelector("input");
-    var history = [], pos = 0;
+    // Earlier commands are kept per server in this browser.
+    var historyKey = "mcpanel-history:" + form.getAttribute("action");
+    var history = [];
+    try { history = JSON.parse(localStorage.getItem(historyKey) || "[]"); } catch (err) {}
+    if (!Array.isArray(history)) history = [];
+    var pos = history.length;
     var send = function (cmd) {
       fetch(form.action, {
         method: "POST",
@@ -163,7 +194,9 @@
       e.preventDefault();
       var cmd = input.value.trim();
       if (!cmd) return;
-      history.push(cmd);
+      if (history[history.length - 1] !== cmd) history.push(cmd);
+      if (history.length > 50) history = history.slice(-50);
+      try { localStorage.setItem(historyKey, JSON.stringify(history)); } catch (err) {}
       pos = history.length;
       input.value = "";
       send(cmd);
@@ -179,7 +212,34 @@
         input.focus();
       });
     });
+    // Tab completes the last word to the name of a player who's online
+    // (from the Players online card); pressing it again picks the next one.
+    var cycle = null;
+    var complete = function () {
+      if (!cycle) {
+        var word = input.value.match(/\S*$/)[0];
+        if (!word) return false;
+        var lower = word.toLowerCase();
+        var names = [];
+        document.querySelectorAll("[data-player]").forEach(function (el) {
+          var n = el.getAttribute("data-player");
+          if (n.toLowerCase().indexOf(lower) === 0) names.push(n);
+        });
+        if (!names.length) return false;
+        cycle = { before: input.value.slice(0, input.value.length - word.length), names: names, i: 0 };
+      } else {
+        cycle.i = (cycle.i + 1) % cycle.names.length;
+      }
+      input.value = cycle.before + cycle.names[cycle.i];
+      return true;
+    };
+    input.addEventListener("input", function () { cycle = null; });
     input.addEventListener("keydown", function (e) {
+      if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if (complete()) e.preventDefault();
+        return;
+      }
+      cycle = null;
       if (e.key === "ArrowUp" && pos > 0) { pos--; input.value = history[pos]; e.preventDefault(); }
       if (e.key === "ArrowDown") {
         if (pos < history.length - 1) { pos++; input.value = history[pos]; } else { pos = history.length; input.value = ""; }

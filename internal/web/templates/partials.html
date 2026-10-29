@@ -198,7 +198,7 @@
 <div class="card" hx-get="/servers/{{.ID}}/online?view=summary" hx-trigger="every 4s" hx-swap="outerHTML">
   <h2>Players online{{if .Status.Players}} <span class="muted">({{len .Status.Players}})</span>{{end}}</h2>
   {{if .Status.Players}}
-  <ul class="list">{{range .Status.Players}}<li><img class="head" src="{{headURL $.Type .}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.}}</span></li>{{end}}</ul>
+  <ul class="list">{{range .Status.Players}}<li data-player="{{.}}"><img class="head" src="{{headURL $.Type .}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.}}</span></li>{{end}}</ul>
   {{else}}<p class="muted">{{if .Status.Online}}Nobody is on right now.{{else}}The server is offline.{{end}}</p>{{end}}
   <a class="small" href="/servers/{{.ID}}/players">Manage players</a>
 </div>
@@ -220,5 +220,21 @@
     <li class="none">{{if .Status.Online}}Nobody is on right now.{{else}}The server is offline.{{end}}</li>
   {{end}}
   </ul>
+</div>
+{{end}}
+
+{{define "disk-usage"}}{{/* takes diskData */}}
+<div class="card">
+  <h2>Disk use</h2>
+  <p class="desc">This server takes {{size .Total}}{{if .Backups}}, plus {{size .Backups}} of backups{{end}}.{{if .HasFree}} {{size .Free}} is free on the disk.{{end}}</p>
+  <ul class="disk-parts">
+    {{range .Parts}}<li><span class="label">{{.Label}}</span><span class="muted">{{size .Size}}</span><span class="meter"><span style="width: {{$.Width .Size}}%"></span></span></li>{{end}}
+    {{if .Backups}}<li><span class="label"><a href="/servers/{{.ID}}/backups">Backups</a></span><span class="muted">{{size .Backups}}</span><span class="meter"><span style="width: {{.Width .Backups}}%"></span></span></li>{{end}}
+  </ul>
+  {{if .OldLogs}}
+  <form method="post" action="/servers/{{.ID}}/files/clear-logs" data-confirm="Delete old logs and crash reports? The current log is kept." style="margin-top:.9rem">
+    <button class="btn small">Delete old logs ({{size .OldLogs}})</button>
+  </form>
+  {{end}}
 </div>
 {{end}}

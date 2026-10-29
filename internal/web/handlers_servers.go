@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Revise0592/McPanel/internal/addons"
+	"github.com/Revise0592/McPanel/internal/geyser"
 	"github.com/Revise0592/McPanel/internal/install"
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
@@ -34,9 +35,12 @@ type serverView struct {
 	MapURL     string
 	AutoMapURL string
 	Port       int
-	AddonNoun  string
-	Tab        string
-	IconTime   int64 // server icon's change time; 0 when there is none
+	// BedrockAddress is where Bedrock players join through Geyser, when
+	// it's installed and turned on.
+	BedrockAddress string
+	AddonNoun      string
+	Tab            string
+	IconTime       int64 // server icon's change time; 0 when there is none
 	// NewBuild is a newer build of the installed version, if there is one.
 	NewBuild     string
 	Usage        mc.Usage
@@ -57,6 +61,9 @@ func (a *App) view(r *http.Request, sv store.Server) serverView {
 			v.Map = m
 			v.AutoMapURL = fmt.Sprintf("http://%s:%d", hostOnly(r), m.Port)
 			v.MapURL = cmp.Or(sv.MapURL, v.AutoMapURL)
+		}
+		if geyser.Supported(sv.Type) && sv.BedrockPort > 0 && geyser.Find(inst.Dir()).On() {
+			v.BedrockAddress = fmt.Sprintf("%s port %d", bedrockHost(r, sv), sv.BedrockPort)
 		}
 	}
 	if v.Port > 0 {
@@ -219,6 +226,7 @@ func (a *App) createServer(w http.ResponseWriter, r *http.Request) {
 		Version:          version,
 		MemoryMB:         formInt(r, "memory", 2048, 512, 65536),
 		RestartOnCrash:   true,
+		TunedFlags:       !bedrock,
 		BackupEveryHours: 24,
 		BackupKeep:       7,
 		InitialProps:     kv,

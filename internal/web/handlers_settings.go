@@ -1,6 +1,7 @@
 package web
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -83,6 +84,16 @@ type settingsData struct {
 	Raw      string
 	Versions []string
 	Memory   []int
+	// HostMB is this machine's memory and OthersMB what the other Java
+	// servers are set to use, so the page can warn about overcommitting.
+	HostMB   int
+	OthersMB int
+}
+
+// MemoryWarning says when the servers together are set to use more memory
+// than the machine has. Java needs some on top of what it's given.
+func (d settingsData) MemoryWarning() bool {
+	return d.HostMB > 0 && d.OthersMB+cmp.Or(d.MemoryMB, 2048) > d.HostMB*9/10
 }
 
 var settingsSections = []string{"general", "game", "version", "advanced"}
@@ -111,6 +122,12 @@ func (a *App) settingsPage(w http.ResponseWriter, r *http.Request) {
 		if !slices.Contains(d.Memory, sv.MemoryMB) && sv.MemoryMB > 0 {
 			d.Memory = append(d.Memory, sv.MemoryMB)
 			slices.Sort(d.Memory)
+		}
+		d.HostMB = mc.HostMemoryMB()
+		for _, o := range a.Store.Servers() {
+			if o.ID != sv.ID && store.IsJava(o.Type) {
+				d.OthersMB += cmp.Or(o.MemoryMB, 2048)
+			}
 		}
 	case "game", "advanced":
 		f, err := props.Load(propsPath(inst))
@@ -239,6 +256,7 @@ func (a *App) saveServerSettings(w http.ResponseWriter, r *http.Request) {
 		s.RestartOnCrash = r.FormValue("restartOnCrash") == "on"
 		if store.IsJava(s.Type) {
 			s.MemoryMB = formInt(r, "memory", s.MemoryMB, 512, 65536)
+			s.TunedFlags = r.FormValue("tunedFlags") == "on"
 			s.JavaArgs = javaArgs
 		}
 	})

@@ -347,14 +347,12 @@ func (i *Instance) run(def store.Server) {
 			i.fail("Could not get Java: %v", err)
 			return
 		}
-		mem := def.MemoryMB
-		if mem <= 0 {
-			mem = 2048
+		cmd = exec.Command(java, javaArgs(def)...)
+		if def.BedrockPort > 0 {
+			// Geyser reads its settings from GEYSER_* variables, so the
+			// port McPanel picked wins over its config file.
+			cmd.Env = append(os.Environ(), fmt.Sprintf("GEYSER_BEDROCK_PORT=%d", def.BedrockPort))
 		}
-		args := []string{fmt.Sprintf("-Xmx%dM", mem), fmt.Sprintf("-Xms%dM", min(mem, 1024))}
-		args = append(args, strings.Fields(def.JavaArgs)...)
-		args = append(args, "-jar", def.Executable, "nogui")
-		cmd = exec.Command(java, args...)
 	} else {
 		cmd = exec.Command(filepath.Join(dir, def.Executable))
 		cmd.Env = append(os.Environ(), "LD_LIBRARY_PATH=.")

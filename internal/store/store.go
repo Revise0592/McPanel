@@ -53,6 +53,13 @@ type Server struct {
 	JavaMajor  int    `json:"javaMajor,omitempty"`
 	MemoryMB   int    `json:"memoryMB,omitempty"`
 	JavaArgs   string `json:"javaArgs,omitempty"`
+	// TunedFlags adds the widely used garbage collector settings (Aikar's
+	// flags) to the Java command line.
+	TunedFlags bool `json:"tunedFlags,omitempty"`
+	// BedrockPort is the port Geyser listens on for Bedrock players, on
+	// Paper servers where McPanel set Geyser up. It's kept when Geyser is
+	// turned off, so turning it back on gives the same address.
+	BedrockPort int `json:"bedrockPort,omitempty"`
 	// JoinAddress is the address players connect to, when it differs from
 	// the panel's own host and the server's port (e.g. behind a proxy).
 	JoinAddress string `json:"joinAddress,omitempty"`

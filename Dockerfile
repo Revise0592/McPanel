@@ -34,7 +34,7 @@ WORKDIR /data
 USER mcpanel
 
 # Panel, Java servers, Bedrock servers.
-EXPOSE 8080/tcp 25565-25575/tcp 19132-19141/udp
+EXPOSE 8080/tcp 25565-25575/tcp 19132-19141/udp 19132-19141/tcp
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD curl -fsS -o /dev/null http://127.0.0.1:8080/login || exit 1

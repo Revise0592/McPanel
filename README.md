@@ -7,17 +7,23 @@ configure and back up your servers from one page.
 ## Features
 
 - Paper, Vanilla, Fabric and Bedrock servers; Java is downloaded automatically
-- Live console with quick buttons, and CPU, memory and (on Paper) TPS charts
-  for the last hour or day
+- Live console with quick buttons, Tab to complete player names, saved
+  command history, and a filter to hide chat or show only problems
+- CPU, memory and (on Paper) TPS charts for the last hour or day
 - Settings as plain controls, or edit `server.properties` directly
 - Players: who's online, who played recently and for how long, kick, ops,
   bans and whitelist
-- File browser: upload, download, new folders, delete, and edit config files
+- File browser: upload, download, new folders, delete, and edit config files.
+  See what takes up space, and delete old logs
 - Backups: manual or scheduled, while the server runs; kept when a server
   is deleted. Restore everything or just the world, and keep copies in a
   second folder
 - Plugins and mods from Modrinth, filtered to your version, with one-click
   updates when they or the server software have a new release
+- Let Bedrock players (phones, consoles, Windows) join Paper servers, with
+  Geyser and Floodgate set up in one click
+- Recommended Java settings (Aikar's flags) with one switch, and a warning
+  when servers are set to use more memory than the computer has
 - Scheduled restarts (with a warning to players) and commands; restart on
   crash, start with the panel
 - Activity history for each server, and alerts to Discord, Slack or any
@@ -39,7 +45,8 @@ Open `http://<host>:8080` and enter the setup code to create your login.
 Everything is stored in `./data`.
 
 - **Ports:** 8080 for the panel, 25565–25575/tcp for Java servers,
-  19132–19141/udp for Bedrock.
+  19132–19141/udp for Bedrock. Bedrock players on a Paper server (Geyser)
+  also need TCP on their port, so 19132–19141/tcp is open too.
 - **Stopping:** give servers time to save. `docker compose down` does this; with
   `docker stop`, add `-t 120`.
 - **File ownership:** the container runs as UID 1000. Use `user:` in
@@ -57,7 +64,8 @@ Check these settings before you click **Apply** (turn on **Advanced View** to se
 **Extra Parameters**):
 
 - **Ports:** 8080 for the panel. Add a port for each server you plan to run:
-  25565–25575/tcp for Java, 19132–19141/udp for Bedrock.
+  25565–25575/tcp for Java, 19132–19141/udp for Bedrock. If Bedrock players
+  join a Paper server, add their port as both UDP and TCP.
 - **Extra Parameters:** `--init --stop-timeout=120 --user 99:100`. This lets
   servers save before the container stops, and makes files owned by
   `nobody:users`.
@@ -95,7 +103,8 @@ turns two-factor sign-in off and shows your username.
 ## Good to know
 
 - **Playing outside your network:** forward the server's port on your router
-  (TCP for Java, UDP for Bedrock).
+  (TCP for Java, UDP for Bedrock). For Bedrock players on a Paper server,
+  forward the port shown on the Plugins tab for both UDP and TCP.
 - **Bedrock download fails:** get the Linux server zip from minecraft.net and
   use *Settings → Install from a zip*.
 - **Player heads** are fetched from Mojang by the panel, not your browser,
