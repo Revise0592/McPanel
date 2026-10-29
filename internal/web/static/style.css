@@ -260,6 +260,7 @@ a.tag.update:hover { text-decoration: underline; }
 .list .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .list .actions { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: flex-end; }
 .list .none { color: var(--muted); }
+.list .name .sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .usage-card .card-head { margin-bottom: .25rem; }
 .seg-links { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .seg-links a { padding: .2rem .65rem; font-size: .82rem; font-weight: 550; color: var(--muted); }
