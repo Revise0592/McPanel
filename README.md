@@ -4,26 +4,6 @@ A simple, self-hosted web panel for running Minecraft servers. It downloads the
 server software and the right Java version for you, then lets you start, stop,
 configure and back up your servers from one page.
 
-<table>
-  <tr>
-    <td align="center"><img src="docs/screenshots/desktop-console.png" alt="Console, with performance charts" width="420"><br><sub>Console, with performance charts</sub></td>
-    <td align="center"><img src="docs/screenshots/desktop-players.png" alt="Players" width="420"><br><sub>Players</sub></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/screenshots/desktop-plugins.png" alt="Plugins and Bedrock support" width="420"><br><sub>Plugins and Bedrock support</sub></td>
-    <td align="center"><img src="docs/screenshots/desktop-settings.png" alt="Server settings" width="420"><br><sub>Server settings</sub></td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <td align="center"><img src="docs/screenshots/mobile-dashboard.png" alt="Servers" width="200"><br><sub>Servers</sub></td>
-    <td align="center"><img src="docs/screenshots/mobile-console.png" alt="Console" width="200"><br><sub>Console</sub></td>
-    <td align="center"><img src="docs/screenshots/mobile-players.png" alt="Recently played" width="200"><br><sub>Recently played</sub></td>
-    <td align="center"><img src="docs/screenshots/mobile-more.png" alt="More menu" width="200"><br><sub>More menu</sub></td>
-  </tr>
-</table>
-
 ## Features
 
 - Paper, Vanilla, Fabric and Bedrock servers; Java is downloaded automatically
@@ -53,6 +33,28 @@ configure and back up your servers from one page.
 - Link to the BlueMap or Dynmap web map, and a warning when the disk is
   nearly full
 - Light/dark theme, accent colour, panel name, logo and server icons
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/desktop-console.png" alt="Console, with performance charts" width="420"><br><sub>Console, with performance charts</sub></td>
+    <td align="center"><img src="docs/screenshots/desktop-players.png" alt="Players" width="420"><br><sub>Players</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/desktop-plugins.png" alt="Plugins and Bedrock support" width="420"><br><sub>Plugins and Bedrock support</sub></td>
+    <td align="center"><img src="docs/screenshots/desktop-settings.png" alt="Server settings" width="420"><br><sub>Server settings</sub></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/mobile-dashboard.png" alt="Servers" width="200"><br><sub>Servers</sub></td>
+    <td align="center"><img src="docs/screenshots/mobile-console.png" alt="Console" width="200"><br><sub>Console</sub></td>
+    <td align="center"><img src="docs/screenshots/mobile-players.png" alt="Recently played" width="200"><br><sub>Recently played</sub></td>
+    <td align="center"><img src="docs/screenshots/mobile-more.png" alt="More menu" width="200"><br><sub>More menu</sub></td>
+  </tr>
+</table>
 
 ## Docker
 
