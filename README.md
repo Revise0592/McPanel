@@ -4,6 +4,27 @@ A simple, self-hosted web panel for running Minecraft servers. It downloads the
 server software and the right Java version for you, then lets you start, stop,
 configure and back up your servers from one page.
 
+<p align="center">
+  <img src="docs/screenshots/desktop-console.png" alt="The console page: live log, command box, quick buttons, and CPU, memory and TPS charts" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/mobile-dashboard.png" alt="Server list on a phone" width="200">
+  <img src="docs/screenshots/mobile-console.png" alt="Console on a phone, with the tab bar along the bottom" width="200">
+  <img src="docs/screenshots/mobile-players.png" alt="Recently played players on a phone" width="200">
+  <img src="docs/screenshots/mobile-more.png" alt="The More menu on a phone" width="200">
+</p>
+
+<details>
+<summary>More screenshots</summary>
+
+![Server list](docs/screenshots/desktop-dashboard.png)
+![Players: online, whitelist, operators and recently played](docs/screenshots/desktop-players.png)
+![Plugins from Modrinth, and one-click Bedrock support](docs/screenshots/desktop-plugins.png)
+![Server settings](docs/screenshots/desktop-settings.png)
+
+</details>
+
 ## Features
 
 - Paper, Vanilla, Fabric and Bedrock servers; Java is downloaded automatically
