@@ -105,6 +105,26 @@
   <a href="/servers/{{.ID}}/files" {{if eq .Tab "files"}}class="active"{{end}}>Files</a>
   <a href="/servers/{{.ID}}/settings" {{if eq .Tab "settings"}}class="active"{{end}}>Settings</a>
 </nav>
+{{/* On phones the tabs move to a bar at the bottom; what doesn't fit goes under More */}}
+{{$t := .Tab}}{{$more := or (eq $t "schedule") (eq $t "settings") (and .AddonNoun (eq $t "files"))}}
+<nav class="tabbar server-tabbar" aria-label="Server">
+  <a href="/servers/{{.ID}}" {{if eq $t "console"}}class="active" aria-current="page"{{end}}>{{template "icon" "console"}}<span>Console</span></a>
+  <a href="/servers/{{.ID}}/players" {{if eq $t "players"}}class="active" aria-current="page"{{end}}>{{template "icon" "players"}}<span>Players</span></a>
+  {{if .AddonNoun}}<a href="/servers/{{.ID}}/addons" {{if eq $t "addons"}}class="active" aria-current="page"{{end}}>{{template "icon" "addons"}}<span>{{title .AddonNoun}}s</span></a>{{end}}
+  <a href="/servers/{{.ID}}/backups" {{if eq $t "backups"}}class="active" aria-current="page"{{end}}>{{template "icon" "backups"}}<span>Backups</span></a>
+  {{if not .AddonNoun}}<a href="/servers/{{.ID}}/files" {{if eq $t "files"}}class="active" aria-current="page"{{end}}>{{template "icon" "files"}}<span>Files</span></a>{{end}}
+  <details class="more">
+    <summary {{if $more}}class="active"{{end}}>{{template "icon" "more"}}<span>More</span></summary>
+    <div class="sheet">
+      <a href="/servers/{{.ID}}/schedule" {{if eq $t "schedule"}}class="active"{{end}}>{{template "icon" "schedule"}}Schedule</a>
+      {{if .AddonNoun}}<a href="/servers/{{.ID}}/files" {{if eq $t "files"}}class="active"{{end}}>{{template "icon" "files"}}Files</a>{{end}}
+      <a href="/servers/{{.ID}}/settings" {{if eq $t "settings"}}class="active"{{end}}>{{template "icon" "settings"}}Server settings</a>
+      <hr>
+      <a href="/">{{template "icon" "servers"}}All servers</a>
+      <a href="/settings">{{template "icon" "settings"}}Panel settings</a>
+    </div>
+  </details>
+</nav>
 {{end}}
 
 {{define "version-options"}}
@@ -222,3 +242,20 @@
   </ul>
 </div>
 {{end}}
+
+{{define "icon"}}{{/* takes a name; line icons for the phone tab bar */}}
+<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+{{- if eq . "servers"}}<rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>
+{{- else if eq . "settings"}}<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+{{- else if eq . "console"}}<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/>
+{{- else if eq . "players"}}<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/>
+{{- else if eq . "addons"}}<path d="M10 3.5a2 2 0 0 1 4 0V5h3a2 2 0 0 1 2 2v3h-1.5a2 2 0 0 0 0 4H19v3a2 2 0 0 1-2 2h-3v-1.5a2 2 0 0 0-4 0V19H7a2 2 0 0 1-2-2v-3h1.5a2 2 0 0 0 0-4H5V7a2 2 0 0 1 2-2h3z"/>
+{{- else if eq . "backups"}}<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/>
+{{- else if eq . "schedule"}}<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+{{- else if eq . "files"}}<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+{{- else if eq . "more"}}<circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/>
+{{- else if eq . "back"}}<path d="m15 18-6-6 6-6"/>
+{{- else if eq . "logout"}}<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+{{- end -}}
+</svg>
+{{- end}}
