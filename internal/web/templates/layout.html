@@ -2,7 +2,7 @@
 <html lang="en" data-theme="{{.Panel.Theme}}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{.Title}} · {{.Panel.PanelName}}</title>
 <link rel="stylesheet" href="{{asset "style.css"}}">
 {{with logo}}<link rel="icon" href="{{.}}">{{else}}{{if hasIcon}}<link rel="icon" href="{{asset "brand/favicon.ico"}}">{{end}}{{end}}
@@ -14,15 +14,21 @@
 {{if .Nav}}
 <header class="topbar">
   <div class="wrap">
+    <a class="back" href="/" aria-label="All servers">{{template "icon" "back"}}</a>
     <a class="brand" href="/">{{template "brand-mark"}}<span class="brand-name">{{.Panel.PanelName}}</span></a>
     <nav class="nav">
       <a href="/" {{if eq .Nav "servers"}}class="active"{{end}}>Servers</a>
       <a href="/settings" {{if eq .Nav "settings"}}class="active"{{end}}>Settings</a>
       <span class="nav-sep" aria-hidden="true"></span>
-      <form class="inline" method="post" action="/logout"><button type="submit">Sign out</button></form>
+      <form class="inline" method="post" action="/logout"><button type="submit" title="Sign out">{{template "icon" "logout"}}<span>Sign out</span></button></form>
     </nav>
   </div>
 </header>
+{{/* Phones: app-style tab bar. Server pages bring their own, which hides this one. */}}
+<nav class="tabbar main-tabbar" aria-label="Main">
+  <a href="/" {{if eq .Nav "servers"}}class="active" aria-current="page"{{end}}>{{template "icon" "servers"}}<span>Servers</span></a>
+  <a href="/settings" {{if eq .Nav "settings"}}class="active" aria-current="page"{{end}}>{{template "icon" "settings"}}<span>Settings</span></a>
+</nav>
 {{end}}
 <main class="wrap">
   {{if .DiskFree}}<div class="flash error" role="alert">The disk is nearly full: {{size .DiskFree}} left. Saving worlds and making backups can fail. Delete old backups, including <a href="/backups/deleted">those of deleted servers</a>, or free up space.</div>{{end}}
