@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 var (
@@ -137,5 +138,54 @@ func TestHeadIgnoresSolidHat(t *testing.T) {
 	}
 	if !same(decode(t, out).At(0, 0), red) {
 		t.Error("solid hat layer covered the face")
+	}
+}
+
+func TestForgetRefetches(t *testing.T) {
+	var calls atomic.Int32
+	c := &Cache{Fetch: fakeMojang(t, "https://textures.minecraft.net/texture/abc", &calls)}
+	c.Get(context.Background(), "Alex")
+	n := calls.Load()
+	c.Forget("ALEX")
+	if got := c.Get(context.Background(), "Alex"); bytes.Equal(got, Placeholder) {
+		t.Fatal("got placeholder after refetch")
+	}
+	if calls.Load() == n {
+		t.Fatal("Forget didn't cause a new lookup")
+	}
+	// Fetched just after a join, so it's only kept briefly in case Mojang
+	// was still handing out the old skin.
+	c.mu.Lock()
+	until := c.entries["alex"].until
+	c.mu.Unlock()
+	if left := time.Until(until); left > rejoinKeep {
+		t.Errorf("kept for %v after a join, want at most %v", left, rejoinKeep)
+	}
+}
+
+func TestFailedRefreshKeepsOldHead(t *testing.T) {
+	var calls atomic.Int32
+	var down atomic.Bool
+	ok := fakeMojang(t, "https://textures.minecraft.net/texture/abc", &calls)
+	c := &Cache{Fetch: func(ctx context.Context, url string) ([]byte, error) {
+		if down.Load() {
+			return nil, errors.New("rate limited")
+		}
+		return ok(ctx, url)
+	}}
+	first := c.Get(context.Background(), "Alex")
+	down.Store(true)
+	c.Forget("Alex")
+	if got := c.Get(context.Background(), "Alex"); !bytes.Equal(got, first) {
+		t.Fatal("a failed refresh replaced the head")
+	}
+}
+
+func TestForgetIgnoresBadNames(t *testing.T) {
+	c := &Cache{}
+	c.Forget("bad name")
+	c.Forget(".BedrockPlayer")
+	if len(c.joined) != 0 {
+		t.Errorf("joined = %v, want empty", c.joined)
 	}
 }

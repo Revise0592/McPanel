@@ -20,6 +20,11 @@ type Manager struct {
 	store    *store.Store
 	activity *activity.Log
 
+	// OnJoin, if set, is called with each player's name as they join any
+	// server. Set it before servers start. It runs while the server's state
+	// is locked, so it must be quick and must not call back into the manager.
+	OnJoin func(name string)
+
 	mu    sync.Mutex
 	insts map[string]*Instance
 }

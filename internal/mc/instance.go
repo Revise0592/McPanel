@@ -222,6 +222,9 @@ func (i *Instance) parseLocked(line string) (ready bool) {
 	for _, re := range []*regexp.Regexp{javaJoin, javaLogin, bedJoin} {
 		if m := re.FindStringSubmatch(line); m != nil {
 			i.joinedLocked(m[1], time.Now())
+			if i.m != nil && i.m.OnJoin != nil {
+				i.m.OnJoin(m[1])
+			}
 			i.rejected = slices.DeleteFunc(i.rejected, func(s string) bool { return s == m[1] })
 			i.lastPlayers = time.Now()
 			return ready

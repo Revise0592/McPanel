@@ -1,6 +1,9 @@
 package web
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"net/url"
 	"strings"
@@ -49,9 +52,13 @@ func headURL(typ, name string) string {
 
 func (a *App) playerHead(w http.ResponseWriter, r *http.Request) {
 	b := a.heads.Get(r.Context(), r.PathValue("name"))
+	// The browser keeps the picture but checks back each time; an unchanged
+	// head costs a 304. This way a new skin shows as soon as the panel has it.
+	sum := sha256.Sum256(b)
 	w.Header().Set("Content-Type", "image/png")
-	w.Header().Set("Cache-Control", "private, max-age=21600")
-	w.Write(b)
+	w.Header().Set("Cache-Control", "private, no-cache")
+	w.Header().Set("ETag", `"`+hex.EncodeToString(sum[:8])+`"`)
+	http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(b))
 }
 
 func (a *App) onlinePartial(w http.ResponseWriter, r *http.Request) {

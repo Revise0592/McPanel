@@ -28,9 +28,17 @@ const Size = 32
 
 const (
 	// keepFor is how long a fetched head is reused before asking Mojang again.
-	keepFor = 24 * time.Hour
+	// Players who join a server are refreshed sooner; see Forget.
+	keepFor = time.Hour
 	// retryAfter is how long a failed lookup shows the placeholder before trying again.
 	retryAfter = time.Hour
+	// retryStale is how long a head that failed to refresh keeps its old
+	// picture before trying again.
+	retryStale = 10 * time.Minute
+	// rejoinWindow and rejoinKeep: Mojang can take a minute or two to hand
+	// out a new skin, so a head fetched soon after a join is only kept briefly.
+	rejoinWindow = 10 * time.Minute
+	rejoinKeep   = 2 * time.Minute
 	// maxEntries bounds the cache; past it, stale entries are dropped.
 	maxEntries = 2000
 	// maxSkin guards against oversized skin downloads.
@@ -51,6 +59,7 @@ type Cache struct {
 
 	mu      sync.Mutex
 	entries map[string]*entry
+	joined  map[string]time.Time // when Forget last saw each player join
 }
 
 type entry struct {
@@ -84,6 +93,11 @@ func (c *Cache) Get(ctx context.Context, name string) []byte {
 			return Placeholder
 		}
 	}
+	// If the cached head is out of date, keep its picture in case the refresh fails.
+	var stale []byte
+	if ok && !bytes.Equal(e.png, Placeholder) {
+		stale = e.png
+	}
 	if len(c.entries) >= maxEntries {
 		c.prune()
 	}
@@ -97,14 +111,46 @@ func (c *Cache) Get(ctx context.Context, name string) []byte {
 	defer cancel()
 	img, err := c.lookup(fctx, name)
 	c.mu.Lock()
-	if err != nil {
-		e.png, e.until = Placeholder, time.Now().Add(retryAfter)
-	} else {
-		e.png, e.until = img, time.Now().Add(keepFor)
+	now := time.Now()
+	switch {
+	case err == nil && now.Sub(c.joined[key]) < rejoinWindow:
+		e.png, e.until = img, now.Add(rejoinKeep)
+	case err == nil:
+		e.png, e.until = img, now.Add(keepFor)
+	case stale != nil:
+		e.png, e.until = stale, now.Add(retryStale)
+	default:
+		e.png, e.until = Placeholder, now.Add(retryAfter)
 	}
 	c.mu.Unlock()
 	close(e.ready)
 	return e.png
+}
+
+// Forget marks a player's head as out of date, so the next Get asks Mojang
+// again. Call it when a player joins a server: a changed skin then shows up
+// straight away. The old picture stays in use if the refresh fails.
+func (c *Cache) Forget(name string) {
+	if !validName.MatchString(name) {
+		return
+	}
+	key := strings.ToLower(name)
+	now := time.Now()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.joined == nil {
+		c.joined = map[string]time.Time{}
+	}
+	for k, t := range c.joined {
+		if now.Sub(t) >= rejoinWindow {
+			delete(c.joined, k)
+		}
+	}
+	c.joined[key] = now
+	// An entry still being fetched has no picture yet and is left alone.
+	if e, ok := c.entries[key]; ok && e.png != nil {
+		e.until = time.Time{}
+	}
 }
 
 // prune drops expired entries, or everything if none have expired.
