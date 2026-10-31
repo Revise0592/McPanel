@@ -19,11 +19,16 @@
       <button class="btn">Send</button>
     </form>
     <div class="quick" aria-label="Quick commands">
+      {{if hasWorld $v.Type}}
       <button type="button" class="btn small ghost" data-fill="say ">Say…</button>
       <button type="button" class="btn small ghost" data-cmd="list">Who's on</button>
       <button type="button" class="btn small ghost" data-cmd="time set day">Make it day</button>
       <button type="button" class="btn small ghost" data-cmd="weather clear">Clear weather</button>
       {{if isJava $v.Type}}<button type="button" class="btn small ghost" data-cmd="save-all">Save the world</button>{{end}}
+      {{else}}
+      <button type="button" class="btn small ghost" data-cmd="glist all">Who's on where</button>
+      <button type="button" class="btn small ghost" data-cmd="velocity reload">Reload settings</button>
+      {{end}}
     </div>
   </div>
   {{template "usage-card" $v.Performance}}
@@ -33,7 +38,9 @@
     {{template "activity-card" $v}}
     <div class="card">
       <h2>How to join</h2>
-      {{if $v.Address}}
+      {{if $v.ViaProxy}}
+      <p>Players join through <strong>{{$v.ViaProxy}}</strong>, which sends them here. This server only accepts players sent by it.</p>
+      {{else if $v.Address}}
       <p>In Minecraft, add a server with this address:</p>
       <p><span class="mono">{{$v.Address}}</span></p>
       {{if $v.BedrockAddress}}<p>On Bedrock Edition, add a server with <span class="mono">{{$v.BedrockAddress}}</span>.</p>{{end}}

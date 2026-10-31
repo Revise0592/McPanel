@@ -107,16 +107,27 @@ func TestDetectBedrock(t *testing.T) {
 	}
 }
 
-func TestDetectRefusesForge(t *testing.T) {
-	base := t.TempDir()
-	write(t, base, map[string]string{"server.properties": "", "libraries/net/minecraftforge/forge/x.jar": ""})
-	if _, err := Detect(base, "x"); err == nil {
-		t.Error("Forge server was accepted")
+func TestDetectLoadersAndForks(t *testing.T) {
+	for _, c := range []struct {
+		file string
+		want string
+	}{
+		{"libraries/net/minecraftforge/forge/x.jar", store.TypeForge},
+		{"libraries/net/neoforged/forge/x.jar", store.TypeForge},
+		{"libraries/net/neoforged/neoforge/21.1/x.jar", store.TypeNeoForge},
+		{"purpur.yml", store.TypePurpur},
+	} {
+		base := t.TempDir()
+		write(t, base, map[string]string{"server.properties": "", "bukkit.yml": "", c.file: ""})
+		f, err := Detect(base, "x")
+		if err != nil || f.Type != c.want {
+			t.Errorf("%s: got %q, %v; want %s", c.file, f.Type, err, c.want)
+		}
 	}
-	neo := t.TempDir()
-	write(t, neo, map[string]string{"server.properties": "", "libraries/net/neoforged/neoforge/21.1/x.jar": ""})
-	if _, err := Detect(neo, "x"); err == nil {
-		t.Error("NeoForge server was accepted")
+	proxy := t.TempDir()
+	write(t, proxy, map[string]string{"velocity.toml": "", "plugins/x.jar": ""})
+	if _, err := Detect(proxy, "x"); err == nil {
+		t.Error("a Velocity proxy was accepted")
 	}
 }
 

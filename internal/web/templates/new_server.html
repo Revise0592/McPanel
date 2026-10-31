@@ -9,12 +9,27 @@
 
   <div class="field">
     <label>Type</label>
-    <div class="segmented" data-type-picker hx-get="/versions" hx-trigger="change" hx-target="#versions" hx-include="[name='type']">
-      <label><input type="radio" name="type" value="paper" checked>Paper<span>Java, supports plugins</span></label>
-      <label><input type="radio" name="type" value="vanilla">Vanilla<span>Java, unmodified</span></label>
-      <label><input type="radio" name="type" value="fabric">Fabric<span>Java, supports mods</span></label>
-      <label><input type="radio" name="type" value="bedrock">Bedrock<span>Phones, consoles, Windows</span></label>
+    <div class="type-groups" data-type-picker hx-get="/versions" hx-trigger="change" hx-target="#versions" hx-include="[name='type']">
+      <div class="type-group"><span class="type-group-label">With plugins</span>
+        <div class="segmented">
+          <label><input type="radio" name="type" value="paper" checked>Paper<span>Fast, the most plugins</span></label>
+          <label><input type="radio" name="type" value="purpur">Purpur<span>Paper with more settings</span></label>
+          <label><input type="radio" name="type" value="folia">Folia<span>Paper for very busy servers; few plugins</span></label>
+        </div></div>
+      <div class="type-group"><span class="type-group-label">With mods</span>
+        <div class="segmented">
+          <label><input type="radio" name="type" value="fabric">Fabric<span>Light, quick to update</span></label>
+          <label><input type="radio" name="type" value="neoforge">NeoForge<span>Most big modpacks</span></label>
+          <label><input type="radio" name="type" value="forge">Forge<span>Older modpacks</span></label>
+        </div></div>
+      <div class="type-group"><span class="type-group-label">Other</span>
+        <div class="segmented">
+          <label><input type="radio" name="type" value="vanilla">Vanilla<span>Java, unmodified</span></label>
+          <label><input type="radio" name="type" value="bedrock">Bedrock<span>Phones, consoles, Windows</span></label>
+          <label><input type="radio" name="type" value="velocity">Velocity<span>Proxy that links your Java servers</span></label>
+        </div></div>
     </div>
+    <p class="help" data-proxy-only hidden>Velocity has no world of its own. Players join it and it sends them on to your Paper, Purpur or Folia servers, which you pick in its settings once it's made.</p>
   </div>
 
   <div class="fields">
@@ -25,6 +40,7 @@
     <div class="field" data-java-only>
       <label for="memory">Memory</label>
       <select id="memory" name="memory">
+        <option value="512">0.5 GB</option>
         <option value="1024">1 GB</option>
         <option value="2048" selected>2 GB</option>
         <option value="3072">3 GB</option>
@@ -33,7 +49,7 @@
         <option value="8192">8 GB</option>
       </select>
     </div>
-    <div class="field">
+    <div class="field" data-world-only>
       <label for="gamemode">Game mode</label>
       <select id="gamemode" name="gamemode">
         <option value="survival">Survival</option>
@@ -41,7 +57,7 @@
         <option value="adventure">Adventure</option>
       </select>
     </div>
-    <div class="field">
+    <div class="field" data-world-only>
       <label for="difficulty">Difficulty</label>
       <select id="difficulty" name="difficulty">
         <option value="peaceful">Peaceful</option>
@@ -56,11 +72,11 @@
     </div>
   </div>
 
-  <div class="field">
+  <div class="field" data-world-only>
     <label class="check"><input type="checkbox" name="whitelist">
       <span><strong>Whitelist</strong><span class="help" style="display:block">Only players you add on the Players tab can join. You can change this later.</span></span></label>
   </div>
-  <div class="field">
+  <div class="field" data-world-only>
     <label class="check"><input type="checkbox" name="eula" required>
       <span>I accept the <a href="https://www.minecraft.net/eula" target="_blank" rel="noopener">Minecraft EULA</a>.</span></label>
   </div>

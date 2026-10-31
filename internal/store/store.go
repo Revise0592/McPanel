@@ -18,10 +18,15 @@ import (
 
 // Server types.
 const (
-	TypeVanilla = "vanilla"
-	TypePaper   = "paper"
-	TypeFabric  = "fabric"
-	TypeBedrock = "bedrock"
+	TypeVanilla  = "vanilla"
+	TypePaper    = "paper"
+	TypePurpur   = "purpur"
+	TypeFolia    = "folia"
+	TypeFabric   = "fabric"
+	TypeNeoForge = "neoforge"
+	TypeForge    = "forge"
+	TypeBedrock  = "bedrock"
+	TypeVelocity = "velocity"
 )
 
 // TypeLabel returns a display name for a server type.
@@ -31,16 +36,41 @@ func TypeLabel(t string) string {
 		return "Vanilla"
 	case TypePaper:
 		return "Paper"
+	case TypePurpur:
+		return "Purpur"
+	case TypeFolia:
+		return "Folia"
 	case TypeFabric:
 		return "Fabric"
+	case TypeNeoForge:
+		return "NeoForge"
+	case TypeForge:
+		return "Forge"
 	case TypeBedrock:
 		return "Bedrock"
+	case TypeVelocity:
+		return "Velocity"
 	}
 	return t
 }
 
 // IsJava reports whether the server type runs on the JVM.
 func IsJava(t string) bool { return t != TypeBedrock }
+
+// IsPaperLike reports whether the server type is Paper or a fork of it,
+// which share plugins and Paper's settings files.
+func IsPaperLike(t string) bool { return t == TypePaper || t == TypePurpur || t == TypeFolia }
+
+// IsModded reports whether the server type loads mods from a mods folder.
+func IsModded(t string) bool { return t == TypeFabric || t == TypeNeoForge || t == TypeForge }
+
+// IsProxy reports whether the server type is a proxy that links other
+// servers together rather than running a world.
+func IsProxy(t string) bool { return t == TypeVelocity }
+
+// HasWorld reports whether the server type runs a world, with
+// server.properties, operators, bans and a whitelist.
+func HasWorld(t string) bool { return !IsProxy(t) }
 
 // Server is a saved server definition.
 type Server struct {
@@ -65,12 +95,22 @@ type Server struct {
 	JoinAddress string `json:"joinAddress,omitempty"`
 	// MapURL is where the server's web map (BlueMap, Dynmap) is reached,
 	// when it differs from the panel's host and the map's port.
-	MapURL           string `json:"mapURL,omitempty"`
-	AutoStart        bool   `json:"autoStart"`
-	RestartOnCrash   bool   `json:"restartOnCrash"`
-	BackupEveryHours int    `json:"backupEveryHours"`
-	BackupKeep       int    `json:"backupKeep"`
-	Installed        bool   `json:"installed"`
+	MapURL string `json:"mapURL,omitempty"`
+	// SleepAfterMins stops the server once nobody has played for that
+	// many minutes. McPanel then holds its port and starts it again when
+	// someone tries to join. 0 means never.
+	SleepAfterMins int `json:"sleepAfterMins,omitempty"`
+	// StatusToken is the secret part of the server's public status page
+	// address. Empty means there is no status page.
+	StatusToken string `json:"statusToken,omitempty"`
+	// Backends are the servers a Velocity proxy links together, in the
+	// order players are sent to them.
+	Backends         []string `json:"backends,omitempty"`
+	AutoStart        bool     `json:"autoStart"`
+	RestartOnCrash   bool     `json:"restartOnCrash"`
+	BackupEveryHours int      `json:"backupEveryHours"`
+	BackupKeep       int      `json:"backupKeep"`
+	Installed        bool     `json:"installed"`
 	// Tasks are restarts and commands run on a timer.
 	Tasks []Task `json:"tasks,omitempty"`
 	// InitialProps are server.properties values chosen at creation, written

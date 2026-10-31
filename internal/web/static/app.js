@@ -63,7 +63,7 @@
 
   // Forms or buttons with data-confirm ask first.
   document.addEventListener("submit", function (e) {
-    var msg = e.target.getAttribute("data-confirm");
+    var msg = (e.submitter && e.submitter.getAttribute("data-confirm")) || e.target.getAttribute("data-confirm");
     if (msg && !window.confirm(msg)) e.preventDefault();
   }, true);
 
@@ -83,15 +83,30 @@
     if (window.confirm(msg)) e.detail.issueRequest(true);
   });
 
-  // New server form: hide Java-only fields for Bedrock.
+  // New server form: hide Java-only fields for Bedrock, and world fields
+  // for the Velocity proxy. Hidden fields are disabled so they don't block
+  // sending the form.
   var typeField = document.querySelector("[data-type-picker]");
   if (typeField) {
+    var lastType = "";
+    var show = function (sel, on) {
+      document.querySelectorAll(sel).forEach(function (el) {
+        el.hidden = !on;
+        el.querySelectorAll("input, select").forEach(function (i) { i.disabled = !on; });
+      });
+    };
     var sync = function () {
       var checked = typeField.querySelector("input:checked");
-      var bedrock = checked && checked.value === "bedrock";
-      document.querySelectorAll("[data-java-only]").forEach(function (el) { el.hidden = bedrock; });
+      var type = checked ? checked.value : "";
+      var bedrock = type === "bedrock", proxy = type === "velocity";
+      show("[data-java-only]", !bedrock);
+      show("[data-world-only]", !proxy);
+      show("[data-proxy-only]", proxy);
       var port = document.querySelector("input[name=port]");
       if (port) port.placeholder = bedrock ? "Automatic (19132+)" : "Automatic (25565+)";
+      var mem = document.querySelector("select[name=memory]");
+      if (mem && type !== lastType && (proxy || lastType === "velocity")) mem.value = proxy ? "512" : "2048";
+      lastType = type;
     };
     typeField.addEventListener("change", sync);
     sync();

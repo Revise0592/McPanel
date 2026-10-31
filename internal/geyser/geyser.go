@@ -33,7 +33,9 @@ var parts = []part{
 }
 
 // Supported reports whether a server type can run Geyser through McPanel.
-func Supported(typ string) bool { return typ == store.TypePaper }
+// Purpur runs Paper plugins; Folia is left out, since its threading needs
+// plugins built for it.
+func Supported(typ string) bool { return typ == store.TypePaper || typ == store.TypePurpur }
 
 // Status is what's installed. Each field is an addons.Addon with an empty
 // File when that plugin is missing.

@@ -201,7 +201,7 @@ func (a *App) importFinish(w http.ResponseWriter, r *http.Request) {
 	case name == "" || len(name) > 40:
 		fail("Give the server a name (up to 40 characters).")
 		return
-	case !slices.Contains(serverTypes, typ):
+	case !slices.Contains(serverTypes, typ) || !store.HasWorld(typ):
 		fail("Pick a server type.")
 		return
 	case version == "":

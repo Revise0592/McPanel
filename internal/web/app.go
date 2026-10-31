@@ -87,6 +87,8 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 		"asset":     func(name string) string { return "/static/" + name + "?v=" + assetVersion },
 		"typeLabel": store.TypeLabel,
 		"isJava":    store.IsJava,
+		"isModded":  store.IsModded,
+		"hasWorld":  store.HasWorld,
 		"size":      backup.HumanSize,
 		"ago":       ago,
 		// The extra minute stops "in 6 hours" showing as "in 5 hours" a
@@ -95,6 +97,7 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 		"since":      since,
 		"backupKind": backup.KindLabel,
 		"add":        func(a, b int) int { return a + b },
+		"div":        func(a, b int) int { return a / b },
 		"playtime":   playtime,
 		"date":       func(t time.Time) string { return t.Format("2 Jan 2006, 15:04") },
 		"lower":      strings.ToLower,
@@ -154,6 +157,12 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("GET /login/code", a.loginCodePage)
 	mux.HandleFunc("POST /login/code", a.loginCodeSubmit)
 
+	// Public status pages, reached by their secret link.
+	mux.HandleFunc("GET /s/{token}", a.statusPage)
+	mux.HandleFunc("GET /s/{token}/live", a.statusLive)
+	mux.HandleFunc("GET /s/{token}/icon", a.statusIcon)
+	mux.HandleFunc("GET /s/{token}/heads/{name}", a.statusHead)
+
 	p := func(pattern string, h http.HandlerFunc) { mux.Handle(pattern, a.requireAuth(h)) }
 	p("GET /{$}", a.dashboard)
 	p("GET /partials/servers", a.serverCards)
@@ -183,12 +192,15 @@ func (a *App) Handler() http.Handler {
 	p("POST /servers/{id}/settings/game", a.saveGameSettings)
 	p("POST /servers/{id}/settings/server", a.saveServerSettings)
 	p("POST /servers/{id}/settings/raw", a.saveRawProperties)
+	p("POST /servers/{id}/settings/proxy", a.saveProxySettings)
+	p("POST /servers/{id}/settings/network", a.saveNetwork)
 	p("POST /servers/{id}/settings/version", a.changeVersion)
 	p("POST /servers/{id}/updates/check", a.checkUpdates)
 	p("POST /servers/{id}/settings/bedrock-zip", a.uploadBedrockZip)
 	p("GET /servers/{id}/icon", a.serverIcon)
 	p("POST /servers/{id}/settings/icon", a.uploadServerIcon)
 	p("POST /servers/{id}/settings/icon/remove", a.removeServerIcon)
+	p("POST /servers/{id}/settings/status-page", a.saveStatusPage)
 	p("POST /servers/{id}/delete", a.deleteServer)
 
 	p("GET /servers/{id}/backups", a.backupsPage)

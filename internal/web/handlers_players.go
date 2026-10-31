@@ -22,7 +22,10 @@ type playersData struct {
 	Bans        []string
 	Running     bool
 	Bedrock     bool
-	Recent      []players.Recent
+	// Proxy servers have no lists of their own; those are on the servers
+	// behind them.
+	Proxy  bool
+	Recent []players.Recent
 }
 
 func (a *App) playersPage(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +35,7 @@ func (a *App) playersPage(w http.ResponseWriter, r *http.Request) {
 	}
 	d := playersData{serverView: a.view(r, sv), Bedrock: sv.Type == store.TypeBedrock}
 	d.Tab = "players"
+	d.Proxy = store.IsProxy(sv.Type)
 	d.Running = d.Status.State == mc.Running
 	d.WhitelistOn = players.WhitelistEnabled(sv, inst.Dir())
 	d.Whitelist, _ = players.Read(sv, inst.Dir(), players.Whitelist)
@@ -76,6 +80,10 @@ func (a *App) onlinePartial(w http.ResponseWriter, r *http.Request) {
 func (a *App) playersAction(w http.ResponseWriter, r *http.Request) {
 	sv, inst, ok := a.load(w, r)
 	if !ok {
+		return
+	}
+	if store.IsProxy(sv.Type) {
+		http.NotFound(w, r)
 		return
 	}
 	name := strings.TrimSpace(r.FormValue("name"))

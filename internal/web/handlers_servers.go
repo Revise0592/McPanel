@@ -47,6 +47,8 @@ type serverView struct {
 	HasUsage     bool
 	AddonUpdates map[string]addons.Update
 	UpdateCheck  updates.Info
+	// ViaProxy names the Velocity proxy players reach this server through.
+	ViaProxy string
 }
 
 func (a *App) view(r *http.Request, sv store.Server) serverView {
@@ -70,6 +72,9 @@ func (a *App) view(r *http.Request, sv store.Server) serverView {
 		v.AutoAddress = fmt.Sprintf("%s:%d", hostOnly(r), v.Port)
 	}
 	v.Address = cmp.Or(sv.JoinAddress, v.AutoAddress)
+	if store.IsPaperLike(sv.Type) {
+		v.ViaProxy = a.proxyOf(sv.ID)
+	}
 	if addons.Supported(sv.Type) {
 		v.AddonNoun = addons.Noun(sv.Type)
 	}
@@ -128,7 +133,11 @@ type newServerData struct {
 	Err      string
 }
 
-var serverTypes = []string{store.TypePaper, store.TypeVanilla, store.TypeFabric, store.TypeBedrock}
+var serverTypes = []string{
+	store.TypePaper, store.TypePurpur, store.TypeFolia,
+	store.TypeFabric, store.TypeNeoForge, store.TypeForge,
+	store.TypeVanilla, store.TypeBedrock, store.TypeVelocity,
+}
 
 func (a *App) newServerPage(w http.ResponseWriter, r *http.Request) {
 	d := newServerData{Types: serverTypes, Type: store.TypePaper}
@@ -184,7 +193,7 @@ func (a *App) createServer(w http.ResponseWriter, r *http.Request) {
 	case version == "":
 		fail("Pick a version.")
 		return
-	case r.FormValue("eula") != "on":
+	case store.HasWorld(typ) && r.FormValue("eula") != "on":
 		fail("You need to accept the Minecraft EULA to run a server.")
 		return
 	}
@@ -211,7 +220,9 @@ func (a *App) createServer(w http.ResponseWriter, r *http.Request) {
 	// Always write the whitelist setting: newer Java versions default it
 	// to on, which would silently lock everyone out on first start.
 	whitelist := strconv.FormatBool(r.FormValue("whitelist") == "on")
-	if bedrock {
+	if store.IsProxy(typ) {
+		kv = map[string]string{"server-port": strconv.Itoa(port), "motd": name}
+	} else if bedrock {
 		kv["server-portv6"] = strconv.Itoa(port + 1)
 		kv["server-name"] = name
 		kv["allow-list"] = whitelist
@@ -224,7 +235,7 @@ func (a *App) createServer(w http.ResponseWriter, r *http.Request) {
 		Name:             name,
 		Type:             typ,
 		Version:          version,
-		MemoryMB:         formInt(r, "memory", 2048, 512, 65536),
+		MemoryMB:         formInt(r, "memory", mc.DefaultMemoryMB(typ), 512, 65536),
 		RestartOnCrash:   true,
 		TunedFlags:       !bedrock,
 		BackupEveryHours: 24,

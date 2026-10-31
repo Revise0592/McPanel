@@ -11,3 +11,6 @@ id_*
 *.pem
 *.key
 .env
+
+# Our own notes, not for the repo
+/IDEAS.md

@@ -106,6 +106,8 @@ func (c *Checker) note(sv store.Server, in Info) {
 			what := "build " + in.LatestBuild
 			if sv.Type == store.TypeBedrock {
 				what = "version " + in.LatestBuild
+			} else if store.IsModded(sv.Type) {
+				what = "loader " + in.LatestBuild
 			}
 			parts = append(parts, fmt.Sprintf("%s %s", store.TypeLabel(sv.Type), what))
 		}

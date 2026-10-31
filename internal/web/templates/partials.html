@@ -20,6 +20,9 @@
 {{- else if not .Installed -}}
   <form class="inline" method="post" action="/servers/{{.ID}}/settings/version"><button class="btn small">Retry install</button></form>
   {{- if eq .Type "bedrock"}}<a class="btn small ghost" href="/servers/{{.ID}}/settings">Upload zip</a>{{end -}}
+{{- else if eq $s.State "sleeping" -}}
+  <button class="btn primary" hx-post="/servers/{{.ID}}/power/start">Wake up</button>
+  <button class="btn" hx-post="/servers/{{.ID}}/power/stop" title="Stop, and don't start when players join">Stop</button>
 {{- else if eq $s.State "stopping" -}}
   <button class="btn danger" hx-post="/servers/{{.ID}}/power/kill" data-confirm="Force close without saving? Recent changes in the world may be lost.">Force stop</button>
 {{- else if $s.Online -}}
@@ -53,7 +56,7 @@
     <dt>Address</dt><dd>{{if .Address}}<span class="mono">{{.Address}}</span>{{else}}<span class="muted">Not set yet</span>{{end}}</dd>
     <dt>Players</dt><dd>{{if .Status.Online}}{{len .Status.Players}} online{{if .Status.Players}}
       <span class="card-heads">{{range $i, $p := .Status.Players}}{{if lt $i 8}}<img class="head" src="{{headURL $.Type $p}}" alt="{{$p}}" title="{{$p}}" width="18" height="18" loading="lazy">{{end}}{{end}}{{if gt (len .Status.Players) 8}}<span class="muted small">+{{len (slice .Status.Players 8)}}</span>{{end}}</span>{{end}}
-      {{else}}<span class="muted">-</span>{{end}}</dd>
+      {{else if eq .Status.State "sleeping"}}<span class="muted">Starts when someone joins</span>{{else}}<span class="muted">-</span>{{end}}</dd>
     {{if .HasUsage}}<dt>Usage</dt><dd>{{template "usage" .}}</dd>{{end}}
   </dl>
   {{if .Status.Task}}<div class="small">{{template "task-progress" .}}</div>{{end}}
@@ -79,7 +82,7 @@
   <div class="info">
     <div class="name"><h1>{{.Name}}</h1>{{template "badge" .}}</div>
     <div class="meta">
-      <span>{{typeLabel .Type}} {{.Version}}{{if .Build}} <span class="muted">({{if eq .Type "fabric"}}loader {{else}}build {{end}}{{.Build}})</span>{{end}}</span>
+      <span>{{typeLabel .Type}} {{.Version}}{{if .Build}} <span class="muted">({{if isModded .Type}}loader {{else}}build {{end}}{{.Build}})</span>{{end}}</span>
       {{if .Address}}<span class="addr"><span class="mono">{{.Address}}</span><button class="copy" type="button" data-copy="{{.Address}}" title="Copy address">Copy</button></span>{{end}}
       {{if .MapURL}}<a href="{{.MapURL}}" target="_blank" rel="noopener">Web map</a>{{end}}
       {{if .NewBuild}}<a class="tag update" href="/servers/{{.ID}}/settings?s=version">Update available</a>{{end}}
@@ -88,7 +91,7 @@
     <div class="live small">{{/* always present so the header keeps its height */}}
       {{- if .Status.Task}}{{template "task-progress" .}}
       {{- else if .HasUsage}}{{template "usage" .}}{{if eq .Status.State "running"}}<span class="muted">Up {{since .Status.StartedAt}}</span>{{end}}
-      {{- else}}<span class="muted">{{if .Status.Online}}Starting up…{{else}}Not running{{end}}</span>{{end -}}
+      {{- else}}<span class="muted">{{if .Status.Online}}Starting up…{{else if eq .Status.State "sleeping"}}Asleep to save memory. It starts when someone joins.{{else}}Not running{{end}}</span>{{end -}}
     </div>
   </div>
   <div class="actions">{{template "power-buttons" .}}</div>
@@ -219,23 +222,23 @@
   <h2>Players online{{if .Status.Players}} <span class="muted">({{len .Status.Players}})</span>{{end}}</h2>
   {{if .Status.Players}}
   <ul class="list">{{range .Status.Players}}<li data-player="{{.}}"><img class="head" src="{{headURL $.Type .}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.}}</span></li>{{end}}</ul>
-  {{else}}<p class="muted">{{if .Status.Online}}Nobody is on right now.{{else}}The server is offline.{{end}}</p>{{end}}
+  {{else}}<p class="muted">{{if .Status.Online}}Nobody is on right now.{{else if eq .Status.State "sleeping"}}The server is asleep. It starts when someone joins.{{else}}The server is offline.{{end}}</p>{{end}}
   <a class="small" href="/servers/{{.ID}}/players">Manage players</a>
 </div>
 {{end}}
 
 {{define "online-manage"}}{{/* takes serverView; refreshes itself */}}
-{{$act := printf "/servers/%s/players" .ID}}{{$bedrock := eq .Type "bedrock"}}
+{{$act := printf "/servers/%s/players" .ID}}{{$bedrock := eq .Type "bedrock"}}{{$proxy := eq .Type "velocity"}}
 <div class="card" hx-get="/servers/{{.ID}}/online?view=manage" hx-trigger="every 4s" hx-swap="outerHTML">
   <h2>Online now{{if .Status.Players}} <span class="muted">({{len .Status.Players}})</span>{{end}}</h2>
   <ul class="list">
   {{range .Status.Players}}
     <li><img class="head" src="{{headURL $.Type .}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.}}</span>
-      <span class="actions">
+      {{if not $proxy}}<span class="actions">
         <form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small" name="action" value="op">Make operator</button></form>
         <form class="inline" method="post" action="{{$act}}"><input type="hidden" name="name" value="{{.}}"><button class="btn small" name="action" value="kick">Kick</button></form>
         {{if not $bedrock}}<form class="inline" method="post" action="{{$act}}" data-confirm="Ban {{.}}?"><input type="hidden" name="name" value="{{.}}"><button class="btn small danger" name="action" value="ban">Ban</button></form>{{end}}
-      </span></li>
+      </span>{{end}}</li>
   {{else}}
     <li class="none">{{if .Status.Online}}Nobody is on right now.{{else}}The server is offline.{{end}}</li>
   {{end}}
@@ -275,3 +278,41 @@
 {{- end -}}
 </svg>
 {{- end}}
+
+{{define "status-live"}}{{/* takes publicView; the public status page, refreshing itself */}}
+{{- $changing := or (eq .State "starting") (eq .State "stopping")}}
+<div class="card status-card" hx-get="/s/{{.Token}}/live" hx-trigger="every {{if $changing}}2s{{else}}5s{{end}}" hx-swap="outerHTML">
+  <div class="status-top">
+    {{if .IconTime}}<img class="avatar" src="/s/{{.Token}}/icon?v={{.IconTime}}" alt="" width="56" height="56">
+    {{- else}}<span class="avatar {{.Type}}" aria-hidden="true">{{slice (typeLabel .Type) 0 1}}</span>{{end}}
+    <div class="status-name">
+      <h1>{{.Name}}</h1>
+      {{if .MOTD}}<p class="muted">{{.MOTD}}</p>{{end}}
+    </div>
+    <span class="badge {{.State}}">{{.Label}}</span>
+  </div>
+
+  {{if eq .State "sleeping"}}
+  <p class="status-note">The server is asleep to save power. Join it and it starts up: wait about a minute, then join again.</p>
+  {{else if not .Online}}{{if or (eq .State "stopped") (eq .State "crashed")}}
+  <p class="status-note">The server is offline right now.</p>
+  {{end}}{{end}}
+
+  {{if .Address}}
+  <h2>How to join</h2>
+  <ul class="list join-list">
+    <li><span class="name">{{if eq .Type "bedrock"}}Bedrock Edition{{else}}Java Edition {{if ne .Type "velocity"}}{{.Version}}{{end}}{{end}}</span>
+      <span class="addr"><span class="mono">{{.Address}}</span><button class="copy" type="button" data-copy="{{.Address}}" title="Copy address">Copy</button></span></li>
+    {{if .BedrockAddress}}<li><span class="name">Bedrock Edition</span><span class="mono">{{.BedrockAddress}}</span></li>{{end}}
+  </ul>
+  {{if eq .Type "bedrock"}}<p class="muted small">In Minecraft, go to Play, then Servers, then Add Server. The number after the colon is the port.</p>{{end}}
+  {{end}}
+
+  <h2>Players {{if .Online}}<span class="muted">{{len .Players}} of {{.MaxPlayers}}</span>{{end}}</h2>
+  {{if .Players}}
+  <ul class="list">{{range .Players}}<li><img class="head" src="{{$.HeadURL .}}" alt="" width="20" height="20" loading="lazy"><span class="name">{{.}}</span></li>{{end}}</ul>
+  {{else}}<p class="muted">{{if .Online}}Nobody is on right now.{{else}}Nobody can be on while the server isn't running.{{end}}</p>{{end}}
+
+  {{if .MapURL}}<p><a class="btn" href="{{.MapURL}}" target="_blank" rel="noopener">Open the web map</a></p>{{end}}
+</div>
+{{end}}

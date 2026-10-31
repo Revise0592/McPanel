@@ -1,5 +1,5 @@
-// Package addons searches Modrinth and manages plugins (Paper) and mods
-// (Fabric) on disk.
+// Package addons searches Modrinth and manages plugins (Paper, its forks and
+// Velocity) and mods (Fabric, NeoForge and Forge) on disk.
 package addons
 
 import (
@@ -24,28 +24,48 @@ import (
 const api = "https://api.modrinth.com/v2"
 
 // Supported reports whether a server type takes add-ons.
-func Supported(typ string) bool { return typ == store.TypePaper || typ == store.TypeFabric }
+func Supported(typ string) bool {
+	return store.IsPaperLike(typ) || store.IsModded(typ) || store.IsProxy(typ)
+}
 
 // Noun is "plugin" or "mod".
 func Noun(typ string) string {
-	if typ == store.TypeFabric {
+	if store.IsModded(typ) {
 		return "mod"
 	}
 	return "plugin"
 }
 
 func folder(typ string) string {
-	if typ == store.TypeFabric {
+	if store.IsModded(typ) {
 		return "mods"
 	}
 	return "plugins"
 }
 
+// loaders are the Modrinth loaders whose releases run on a server type.
 func loaders(typ string) []string {
-	if typ == store.TypeFabric {
-		return []string{"fabric"}
+	switch typ {
+	case store.TypeFabric, store.TypeNeoForge, store.TypeForge, store.TypeVelocity:
+		return []string{typ}
+	case store.TypePurpur:
+		return []string{"purpur", "paper", "spigot", "bukkit"}
+	case store.TypeFolia:
+		// Folia runs regions on their own threads; plugins have to say
+		// they support it.
+		return []string{"folia"}
 	}
 	return []string{"paper", "spigot", "bukkit"}
+}
+
+// gameVersions filters releases by Minecraft version. Velocity plugins work
+// with whatever versions the proxy does, and its own version isn't a
+// Minecraft one, so they aren't filtered.
+func gameVersions(typ, mcVersion string) []string {
+	if store.IsProxy(typ) {
+		return nil
+	}
+	return []string{mcVersion}
 }
 
 // Hit is a search result.
@@ -70,8 +90,11 @@ func Search(ctx context.Context, typ, mcVersion, query string) ([]Hit, error) {
 	for _, l := range loaders(typ) {
 		cats = append(cats, "categories:"+l)
 	}
-	groups := [][]string{cats, {"versions:" + mcVersion}, {"server_side:required", "server_side:optional"}}
-	if typ == store.TypeFabric {
+	groups := [][]string{cats, {"server_side:required", "server_side:optional"}}
+	for _, v := range gameVersions(typ, mcVersion) {
+		groups = append(groups, []string{"versions:" + v})
+	}
+	if store.IsModded(typ) {
 		groups = append(groups, []string{"project_type:mod"})
 	}
 	q := url.Values{}
@@ -185,15 +208,20 @@ func Install(ctx context.Context, typ, mcVersion, projectID, serverDir string, l
 
 func latestVersion(ctx context.Context, typ, mcVersion, projectID string) (version, error) {
 	l, _ := json.Marshal(loaders(typ))
-	g, _ := json.Marshal([]string{mcVersion})
 	q := url.Values{}
 	q.Set("loaders", string(l))
-	q.Set("game_versions", string(g))
+	if gv := gameVersions(typ, mcVersion); gv != nil {
+		g, _ := json.Marshal(gv)
+		q.Set("game_versions", string(g))
+	}
 	var vs []version
 	if err := install.GetJSON(ctx, fmt.Sprintf("%s/project/%s/version?%s", api, url.PathEscape(projectID), q.Encode()), &vs); err != nil {
 		return version{}, err
 	}
 	if len(vs) == 0 || len(vs[0].Files) == 0 {
+		if store.IsProxy(typ) {
+			return version{}, fmt.Errorf("no release for %s", store.TypeLabel(typ))
+		}
 		return version{}, fmt.Errorf("no release for Minecraft %s", mcVersion)
 	}
 	return vs[0], nil
@@ -291,10 +319,12 @@ func CheckUpdates(ctx context.Context, typ, mcVersion, serverDir string) (map[st
 		return nil, nil
 	}
 	body := map[string]any{
-		"hashes":        hashes,
-		"algorithm":     "sha512",
-		"loaders":       loaders(typ),
-		"game_versions": []string{mcVersion},
+		"hashes":    hashes,
+		"algorithm": "sha512",
+		"loaders":   loaders(typ),
+	}
+	if gv := gameVersions(typ, mcVersion); gv != nil {
+		body["game_versions"] = gv
 	}
 	var res map[string]version
 	if err := install.PostJSON(ctx, api+"/version_files/update", body, &res); err != nil {

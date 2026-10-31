@@ -34,3 +34,17 @@ func TestJavaArgs(t *testing.T) {
 		t.Errorf("16 GB server should get the large-heap flags: %v", big)
 	}
 }
+
+func TestJavaArgsLoadersAndProxy(t *testing.T) {
+	neo := javaArgs(store.Server{Type: store.TypeNeoForge, MemoryMB: 4096, Executable: "@libraries/net/neoforged/neoforge/21.1.77/unix_args.txt"})
+	if !slices.Equal(neo[len(neo)-2:], []string{"@libraries/net/neoforged/neoforge/21.1.77/unix_args.txt", "nogui"}) || slices.Contains(neo, "-jar") {
+		t.Errorf("neoforge = %v", neo)
+	}
+	proxy := javaArgs(store.Server{Type: store.TypeVelocity, Executable: "velocity.jar", TunedFlags: true})
+	if proxy[0] != "-Xms512M" || !slices.Contains(proxy, "-XX:MaxInlineLevel=15") || slices.Contains(proxy, "nogui") || slices.Contains(proxy, "-XX:G1NewSizePercent=30") {
+		t.Errorf("velocity = %v", proxy)
+	}
+	if !slices.Equal(proxy[len(proxy)-2:], []string{"-jar", "velocity.jar"}) {
+		t.Errorf("velocity ends %v", proxy[len(proxy)-2:])
+	}
+}

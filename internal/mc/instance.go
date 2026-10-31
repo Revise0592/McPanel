@@ -20,6 +20,7 @@ import (
 	"github.com/Revise0592/McPanel/internal/activity"
 	"github.com/Revise0592/McPanel/internal/install"
 	"github.com/Revise0592/McPanel/internal/store"
+	"github.com/Revise0592/McPanel/internal/wake"
 )
 
 // State of a server process.
@@ -31,6 +32,9 @@ const (
 	Running  State = "running"
 	Stopping State = "stopping"
 	Crashed  State = "crashed"
+	// Sleeping servers are stopped, with McPanel holding their port to
+	// start them when someone joins.
+	Sleeping State = "sleeping"
 )
 
 const (
@@ -51,6 +55,11 @@ var (
 	javaReject2 = regexp.MustCompile(`name=([A-Za-z0-9_.]{1,16}).*You are not white-?listed`)
 	bedJoin     = regexp.MustCompile(`Player connected: (.+?), xuid`)
 	bedLeave    = regexp.MustCompile(`Player disconnected: (.+?), xuid`)
+	// Velocity: "[connected player] Steve (/1.2.3.4:5678) has connected".
+	proxyJoin  = regexp.MustCompile(`\[connected player\] ([A-Za-z0-9_.]{1,16}) \([^)]*\) has connected`)
+	proxyLeave = regexp.MustCompile(`\[connected player\] ([A-Za-z0-9_.]{1,16}) \([^)]*\) has disconnected`)
+	// Velocity says "Done (1.23s)!" when ready, without the "help" hint.
+	proxyDone = regexp.MustCompile(`Done \([0-9.,]+m?s\)!`)
 )
 
 // ErrNotRunning is returned when a command needs a running server.
@@ -73,6 +82,8 @@ type Instance struct {
 	done        chan struct{}
 	stopReq     bool
 	restarting  bool // stopped by Restart, so the next start is a restart
+	sleepReq    bool // being stopped by Sleep
+	waker       *wake.Waker
 	crashes     []time.Time
 	startedAt   time.Time
 	lines       []string
@@ -137,6 +148,8 @@ func (s Status) Label() string {
 		return "Stopping"
 	case Crashed:
 		return "Crashed"
+	case Sleeping:
+		return "Asleep"
 	}
 	return "Offline"
 }
@@ -214,12 +227,12 @@ func (i *Instance) addLine(line string) {
 // whether the line shows the server has finished starting.
 func (i *Instance) parseLocked(line string) (ready bool) {
 	if i.state == Starting {
-		if (strings.Contains(line, "Done (") && strings.Contains(line, "help")) || strings.Contains(line, "Server started.") {
+		if (strings.Contains(line, "Done (") && strings.Contains(line, "help")) || strings.Contains(line, "Server started.") || proxyDone.MatchString(line) {
 			i.state = Running
 			ready = true
 		}
 	}
-	for _, re := range []*regexp.Regexp{javaJoin, javaLogin, bedJoin} {
+	for _, re := range []*regexp.Regexp{javaJoin, javaLogin, bedJoin, proxyJoin} {
 		if m := re.FindStringSubmatch(line); m != nil {
 			i.joinedLocked(m[1], time.Now())
 			if i.m != nil && i.m.OnJoin != nil {
@@ -230,7 +243,7 @@ func (i *Instance) parseLocked(line string) (ready bool) {
 			return ready
 		}
 	}
-	for _, re := range []*regexp.Regexp{javaLeave, bedLeave} {
+	for _, re := range []*regexp.Regexp{javaLeave, bedLeave, proxyLeave} {
 		if m := re.FindStringSubmatch(line); m != nil {
 			i.leftLocked(m[1], time.Now())
 			i.lastPlayers = time.Now()
@@ -326,9 +339,15 @@ func (i *Instance) Start() error {
 		i.mu.Unlock()
 		return nil
 	}
+	w := i.waker
+	i.waker = nil
 	i.state = Starting
 	i.stopReq = false
 	i.mu.Unlock()
+	if w != nil {
+		// Free the port for the server.
+		w.Close()
+	}
 	go i.run(def)
 	return nil
 }
@@ -422,7 +441,7 @@ func (i *Instance) run(def store.Server) {
 		i.leftLocked(p, now)
 	}
 	requested := i.stopReq
-	restarting := i.restarting
+	restarting := i.restarting || i.sleepReq
 	restart := false
 	if requested {
 		i.state = Stopped
@@ -495,6 +514,9 @@ func (i *Instance) SendAndWait(ctx context.Context, command string, match func(s
 
 // Stop asks the server to shut down and returns immediately.
 func (i *Instance) Stop() {
+	if i.stopSleeping() {
+		return
+	}
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if i.state == Crashed {
@@ -520,6 +542,25 @@ func (i *Instance) Stop() {
 			syscall.Kill(-pid, syscall.SIGKILL)
 		}
 	}()
+}
+
+// stopSleeping stops a sleeping server, so it no longer starts when players
+// join. It reports whether the server was asleep.
+func (i *Instance) stopSleeping() bool {
+	i.mu.Lock()
+	if i.state != Sleeping {
+		i.mu.Unlock()
+		return false
+	}
+	i.state = Stopped
+	w := i.waker
+	i.waker = nil
+	i.mu.Unlock()
+	if w != nil {
+		w.Close()
+	}
+	i.m.activity.Add(i.ID, activity.Event{Kind: activity.Power, Text: "Stopped (was asleep)"})
+	return true
 }
 
 // StopAndWait stops the server and blocks until it has exited.

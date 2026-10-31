@@ -6,7 +6,14 @@ configure and back up your servers from one page.
 
 ## Features
 
-- Paper, Vanilla, Fabric and Bedrock servers; Java is downloaded automatically
+- Paper, Purpur, Folia, Vanilla, Fabric, NeoForge, Forge and Bedrock
+  servers; Java is downloaded automatically
+- Velocity proxy: link your Paper, Purpur and Folia servers into one network,
+  with player forwarding set up for you
+- Sleep when nobody is on: the server stops to free memory, still shows in
+  the multiplayer list, and starts again when someone tries to join
+- A public status page for each server, to share with players: who's on,
+  whether it's up and how to join
 - Live console with quick buttons, Tab to complete player names, saved
   command history, and a filter to hide chat or show only problems
 - CPU, memory and (on Paper) TPS charts for the last hour or day
@@ -18,9 +25,9 @@ configure and back up your servers from one page.
 - Backups: manual or scheduled, while the server runs; kept when a server
   is deleted. Restore everything or just the world, and keep copies in a
   second folder
-- Plugins and mods from Modrinth, filtered to your version, with one-click
+- Plugins and mods from Modrinth, filtered to your server type and version, with one-click
   updates when they or the server software have a new release
-- Let Bedrock players (phones, consoles, Windows) join Paper servers, with
+- Let Bedrock players (phones, consoles, Windows) join Paper and Purpur servers, with
   Geyser and Floodgate set up in one click
 - Recommended Java settings (Aikar's flags) with one switch, and a warning
   when servers are set to use more memory than the computer has

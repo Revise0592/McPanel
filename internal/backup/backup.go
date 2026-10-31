@@ -171,7 +171,8 @@ func create(dataDir string, inst *mc.Instance, label string) (Backup, error) {
 	}
 	defer inst.EndTask()
 
-	if inst.Status().State == mc.Running {
+	// A proxy has no world to save first.
+	if inst.Status().State == mc.Running && store.HasWorld(def.Type) {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 		if store.IsJava(def.Type) {

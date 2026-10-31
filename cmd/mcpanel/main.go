@@ -105,6 +105,7 @@ func main() {
 	go app.Updates.Run(ctx)
 	go app.Tasks.Run(ctx)
 	go mgr.RunSampler(ctx)
+	go mgr.RunSleeper(ctx)
 
 	<-ctx.Done()
 	stop()

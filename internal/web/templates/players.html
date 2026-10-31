@@ -7,6 +7,12 @@
   <div class="stack">
     {{template "online-manage" $v}}
 
+    {{if $v.Proxy}}
+    <div class="card">
+      <h2>Whitelist, operators and bans</h2>
+      <p class="desc">Velocity doesn't keep these. Set them on the servers it links to; players are checked when the proxy sends them there.</p>
+    </div>
+    {{else}}
     {{if $v.Status.Rejected}}
     <div class="card">
       <h2>Tried to join</h2>
@@ -43,9 +49,11 @@
         <button class="btn" name="action" value="allow">Add</button>
       </form>
     </div>
+    {{end}}
   </div>
 
   <div class="stack">
+    {{if not $v.Proxy}}
     <div class="card">
       <h2>Operators</h2>
       <p class="muted small">Operators can use commands like /gamemode and /tp in game.</p>
@@ -61,6 +69,7 @@
       </form>
       {{if $v.Bedrock}}<p class="muted small" style="margin-top:.5rem">Bedrock lists operators by Xbox ID. The player must have joined once, and the server must be running.</p>{{end}}
     </div>
+    {{end}}
 
     <div class="card">
       <h2>Recently played</h2>
@@ -73,7 +82,7 @@
       {{if $v.Bedrock}}<p class="muted small" style="margin-top:.5rem">Bedrock doesn't record this, so only players McPanel has seen join are listed.</p>{{end}}
     </div>
 
-    {{if not $v.Bedrock}}
+    {{if not (or $v.Bedrock $v.Proxy)}}
     <div class="card">
       <h2>Banned</h2>
       <ul class="list">

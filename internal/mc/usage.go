@@ -138,4 +138,5 @@ func readProc(pid int) (ticks uint64, memMB int, ok bool) {
 }
 
 // isPaper reports whether the server answers the "tps" command.
-func isPaper(typ string) bool { return typ == store.TypePaper }
+// Folia's "tps" reports each region separately, so it isn't read.
+func isPaper(typ string) bool { return typ == store.TypePaper || typ == store.TypePurpur }

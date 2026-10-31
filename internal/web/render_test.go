@@ -12,6 +12,7 @@ import (
 	"github.com/Revise0592/McPanel/internal/geyser"
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/store"
+	"github.com/Revise0592/McPanel/internal/velocity"
 )
 
 // TestRenderServerPages renders the pages that mix several kinds of data,
@@ -72,5 +73,66 @@ func TestRenderServerPages(t *testing.T) {
 	a.partial(w, "usage-card", usage)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), "Performance") {
 		t.Errorf("usage-card: status %d: %s", w.Code, w.Body)
+	}
+}
+
+// TestRenderNewStates covers sleeping servers, the Velocity proxy's pages
+// and the public status page.
+func TestRenderNewStates(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := New(st, mc.NewManager(dir, st), "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	asleep := serverView{
+		Server:  store.Server{ID: "s", Name: "Survival", Type: store.TypePurpur, Version: "1.21.4", Build: "2400", Installed: true, SleepAfterMins: 15, StatusToken: strings.Repeat("ab", 16)},
+		Status:  mc.Status{State: mc.Sleeping},
+		Address: "localhost:25565",
+	}
+	proxy := serverView{
+		Server:  store.Server{ID: "p", Name: "Network", Type: store.TypeVelocity, Version: "4.3.1", Build: "45", Installed: true, MemoryMB: 512},
+		Status:  mc.Status{State: mc.Running, Players: []string{"Steve"}},
+		Address: "localhost:25577",
+	}
+	linked := asleep
+	linked.ViaProxy = "Network"
+	neo := asleep
+	neo.Type, neo.Build = store.TypeNeoForge, "21.1.77"
+
+	cases := []struct {
+		name, page string
+		data       any
+		want       string
+	}{
+		{"asleep console", "console", consoleData{activityData: activityData{serverView: asleep}, Performance: usageData{serverView: asleep, Range: chartRanges[0], Ranges: chartRanges}}, "Wake up"},
+		{"linked console", "console", consoleData{activityData: activityData{serverView: linked}, Performance: usageData{serverView: linked, Range: chartRanges[0], Ranges: chartRanges}}, "Players join through"},
+		{"proxy console", "console", consoleData{activityData: activityData{serverView: proxy}, Performance: usageData{serverView: proxy, Range: chartRanges[0], Ranges: chartRanges}}, "glist"},
+		{"sleep setting", "settings", settingsData{serverView: asleep, Section: "general", Memory: []int{2048}, SleepChoices: mc.SleepChoices, StatusURL: "http://x/s/abc"}, "After 15 minutes"},
+		{"neoforge version", "settings", settingsData{serverView: neo, Section: "version", Versions: []string{"1.21.4"}}, "with the newest loader"},
+		{"proxy settings", "settings", settingsData{serverView: proxy, Section: "game", Proxy: velocity.Settings{Port: 25577, MOTD: "Hi", MaxPlayers: 100}}, "Save proxy settings"},
+		{"proxy network", "settings", settingsData{serverView: proxy, Section: "network", Backends: []backendChoice{{ID: "s", Name: "Survival", Type: store.TypePaper, Port: 25565, Linked: true, Start: true, Ready: true}, {ID: "c", Name: "Creative", Type: store.TypeFolia, Port: 25566}}}, "Start it once first"},
+		{"proxy advanced", "settings", settingsData{serverView: proxy, Section: "advanced", RawFile: "velocity.toml", Raw: "bind = \"0.0.0.0:25577\""}, "velocity.toml"},
+		{"proxy players", "players", playersData{serverView: proxy, Proxy: true}, "Velocity doesn't keep these"},
+		{"status page", "status", publicView{Token: "t", Name: "Survival", Type: store.TypePaper, Version: "1.21.4", State: mc.Sleeping, Label: "Asleep", Address: "x:25565", MaxPlayers: 20}, "asleep to save power"},
+	}
+	for _, c := range cases {
+		w := httptest.NewRecorder()
+		nav := "servers"
+		if c.page == "status" {
+			nav = ""
+		}
+		a.render(w, httptest.NewRequest("GET", "/", nil), c.page, "t", nav, c.data)
+		if w.Code != 200 || !strings.Contains(w.Body.String(), c.want) {
+			t.Errorf("%s: status %d, want %q in: %s", c.name, w.Code, c.want, w.Body)
+		}
+	}
+	w := httptest.NewRecorder()
+	a.partial(w, "server-card", asleep)
+	if !strings.Contains(w.Body.String(), "Starts when someone joins") || !strings.Contains(w.Body.String(), "badge sleeping") {
+		t.Errorf("sleeping card: %s", w.Body)
 	}
 }

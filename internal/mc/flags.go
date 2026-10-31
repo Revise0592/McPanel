@@ -42,20 +42,47 @@ func aikarFlags(memMB int) []string {
 	}
 }
 
+// velocityFlags are the settings Velocity's documentation recommends.
+var velocityFlags = []string{
+	"-XX:+UseG1GC",
+	"-XX:G1HeapRegionSize=4M",
+	"-XX:+UnlockExperimentalVMOptions",
+	"-XX:+ParallelRefProcEnabled",
+	"-XX:+AlwaysPreTouch",
+	"-XX:MaxInlineLevel=15",
+}
+
+// DefaultMemoryMB is what a server gets when none is set.
+func DefaultMemoryMB(typ string) int {
+	if store.IsProxy(typ) {
+		return 512
+	}
+	return 2048
+}
+
 // javaArgs builds the JVM command line for a Java server.
 func javaArgs(def store.Server) []string {
 	mem := def.MemoryMB
 	if mem <= 0 {
-		mem = 2048
+		mem = DefaultMemoryMB(def.Type)
 	}
 	var args []string
-	if def.TunedFlags {
+	if def.TunedFlags && store.IsProxy(def.Type) {
+		args = append([]string{fmt.Sprintf("-Xms%dM", mem), fmt.Sprintf("-Xmx%dM", mem)}, velocityFlags...)
+	} else if def.TunedFlags {
 		// The flags expect the whole heap to be reserved up front.
 		args = append([]string{fmt.Sprintf("-Xms%dM", mem), fmt.Sprintf("-Xmx%dM", mem)}, aikarFlags(mem)...)
 	} else {
 		args = []string{fmt.Sprintf("-Xmx%dM", mem), fmt.Sprintf("-Xms%dM", min(mem, 1024))}
 	}
 	args = append(args, strings.Fields(def.JavaArgs)...)
+	switch {
+	case store.IsProxy(def.Type):
+		return append(args, "-jar", def.Executable)
+	case strings.HasPrefix(def.Executable, "@"):
+		// NeoForge and newer Forge list their classpath in a file.
+		return append(args, def.Executable, "nogui")
+	}
 	return append(args, "-jar", def.Executable, "nogui")
 }
 

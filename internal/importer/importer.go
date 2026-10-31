@@ -94,10 +94,18 @@ func Detect(base, fallbackName string) (Found, error) {
 	switch {
 	// Paper ships NeoForged tooling under libraries/net/neoforged, so look
 	// for the loaders themselves.
+	case isDir(filepath.Join(root, "libraries", "net", "neoforged", "neoforge")):
+		f.Type = store.TypeNeoForge
+		f.Notes = append(f.Notes, "McPanel runs the NeoForge installer again for the version you pick. Your mods, configs and worlds are kept.")
 	case isDir(filepath.Join(root, "libraries", "net", "minecraftforge", "forge")),
-		isDir(filepath.Join(root, "libraries", "net", "neoforged", "neoforge")),
 		isDir(filepath.Join(root, "libraries", "net", "neoforged", "forge")):
-		return f, errors.New("this looks like a Forge or NeoForge server, which McPanel can't run yet")
+		f.Type = store.TypeForge
+		f.Notes = append(f.Notes, "McPanel runs the Forge installer again for the version you pick. Your mods, configs and worlds are kept.")
+		if isDir(filepath.Join(root, "libraries", "net", "neoforged", "forge")) {
+			f.Notes = append(f.Notes, "This is NeoForge for Minecraft 1.20.1, which McPanel runs as Forge 1.20.1. Most of its mods work on both.")
+		}
+	case exists(filepath.Join(root, "velocity.toml")):
+		return f, errors.New("this looks like a Velocity proxy. Make a new Velocity server instead, and copy its settings across in the file browser")
 	case exists(filepath.Join(root, "bedrock_server")) || exists(filepath.Join(root, "bedrock_server.exe")) || bedrockWorlds(root) != nil:
 		f.Type = store.TypeBedrock
 	case exists(filepath.Join(root, "fabric-server-launch.jar")) || exists(filepath.Join(root, "fabric-server-launcher.properties")) || isDir(filepath.Join(root, ".fabric")):
@@ -105,6 +113,9 @@ func Detect(base, fallbackName string) (Found, error) {
 	case exists(filepath.Join(root, "config", "paper-global.yml")) || exists(filepath.Join(root, "paper.yml")) ||
 		exists(filepath.Join(root, "spigot.yml")) || exists(filepath.Join(root, "bukkit.yml")) || isDir(filepath.Join(root, "plugins")):
 		f.Type = store.TypePaper
+		if exists(filepath.Join(root, "purpur.yml")) {
+			f.Type = store.TypePurpur
+		}
 		if !exists(filepath.Join(root, "config", "paper-global.yml")) && !exists(filepath.Join(root, "paper.yml")) {
 			f.Notes = append(f.Notes, "This looks like a Spigot or Bukkit server. It will run on Paper, which supports the same plugins.")
 		}

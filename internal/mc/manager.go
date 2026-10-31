@@ -1,6 +1,7 @@
 package mc
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/Revise0592/McPanel/internal/install"
 	"github.com/Revise0592/McPanel/internal/props"
 	"github.com/Revise0592/McPanel/internal/store"
+	"github.com/Revise0592/McPanel/internal/velocity"
 )
 
 // Manager owns every server instance.
@@ -58,12 +60,18 @@ func (m *Manager) Get(id string) (*Instance, error) {
 	return inst, nil
 }
 
-// StartAutostart starts every installed server marked to start with the panel.
+// StartAutostart starts every installed server marked to start with the
+// panel. Servers that sleep when empty start asleep, since nobody can be on
+// them yet.
 func (m *Manager) StartAutostart() {
 	for _, sv := range m.store.Servers() {
 		if sv.AutoStart && sv.Installed {
 			if inst, err := m.Get(sv.ID); err == nil {
-				inst.Start()
+				if sv.SleepAfterMins > 0 {
+					inst.Sleep("Asleep until someone joins")
+				} else {
+					inst.Start()
+				}
 			}
 		}
 	}
@@ -205,6 +213,11 @@ func (m *Manager) install(id string, before func(*Instance) error, run installFu
 }
 
 func (m *Manager) firstRunProperties(def store.Server, dir string) error {
+	if def.Type == store.TypeVelocity {
+		port := velocity.DefaultPort
+		fmt.Sscan(def.InitialProps["server-port"], &port)
+		return velocity.Prepare(dir, filepath.Join(dir, install.VelocityJar), port, cmp.Or(def.InitialProps["motd"], def.Name))
+	}
 	if len(def.InitialProps) == 0 {
 		return nil
 	}
@@ -244,6 +257,9 @@ func (m *Manager) UsedPorts(skipID string) map[int]string {
 
 // Port returns the configured game port for a server.
 func (m *Manager) Port(sv store.Server) int {
+	if sv.Type == store.TypeVelocity {
+		return velocity.Port(filepath.Join(m.dataDir, "servers", sv.ID))
+	}
 	f, err := props.Load(filepath.Join(m.dataDir, "servers", sv.ID, "server.properties"))
 	if err != nil {
 		return 0

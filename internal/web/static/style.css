@@ -184,6 +184,8 @@ input[type=color] { width: 3rem; height: 2.3rem; padding: 0; border: 1px solid v
 .badge.starting::before, .badge.stopping::before, .badge.busy::before { background: var(--warn); }
 .badge.crashed { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
 .badge.crashed::before { background: var(--bad); }
+.badge.sleeping { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.badge.sleeping::before { background: transparent; border: 2px solid var(--accent); width: .35rem; height: .35rem; }
 .task-progress { display: inline-flex; align-items: center; gap: .6rem; color: var(--muted); }
 .task-progress .bar { display: block; width: 10rem; height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
 .task-progress .bar > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .6s ease; }
@@ -346,6 +348,11 @@ table.files td.name { word-break: break-all; }
 .avatar.vanilla { color: #16a34a; background: color-mix(in srgb, #16a34a 12%, var(--surface)); }
 .avatar.fabric { color: #b45309; background: color-mix(in srgb, #b45309 12%, var(--surface)); }
 .avatar.bedrock { color: #7c3aed; background: color-mix(in srgb, #7c3aed 12%, var(--surface)); }
+.avatar.purpur { color: #9333ea; background: color-mix(in srgb, #9333ea 12%, var(--surface)); }
+.avatar.folia { color: #0d9488; background: color-mix(in srgb, #0d9488 12%, var(--surface)); }
+.avatar.neoforge { color: #ea580c; background: color-mix(in srgb, #ea580c 12%, var(--surface)); }
+.avatar.forge { color: #475569; background: color-mix(in srgb, #475569 12%, var(--surface)); }
+.avatar.velocity { color: #0284c7; background: color-mix(in srgb, #0284c7 12%, var(--surface)); }
 
 /* Settings pages: section list on the left, the chosen section on the right */
 .settings-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 1.5rem; align-items: start; }
@@ -511,3 +518,22 @@ dl.facts dd { margin: 0; }
   .addon-list li { flex-wrap: wrap; row-gap: .45rem; }
   .addon-list .actions { flex-basis: 100%; justify-content: flex-start; }
 }
+
+/* Public status page */
+.status-page { max-width: 36rem; margin: 3rem auto 2rem; }
+.status-card h2 { margin-top: 1.4rem; }
+.status-top { display: flex; align-items: center; gap: .9rem; }
+.status-top .avatar { width: 3.5rem; height: 3.5rem; font-size: 1.4rem; flex: none; }
+.status-name { flex: 1; min-width: 0; }
+.status-name h1 { margin: 0; font-size: 1.4rem; overflow-wrap: anywhere; }
+.status-name p { margin: .15rem 0 0; }
+.status-note { margin: 1rem 0 0; padding: .7rem .9rem; border-radius: .6rem; background: var(--accent-soft); }
+.status-foot { text-align: center; margin-top: 1rem; }
+.status-link { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.status-link .mono { overflow-wrap: anywhere; }
+@media (max-width: 640px) { .status-page { margin-top: 1rem; } }
+
+/* New server: types in groups */
+.type-groups { display: grid; gap: .75rem; }
+.type-group-label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .3rem; }
+.type-group .segmented label { flex: 1 1 10rem; }

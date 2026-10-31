@@ -49,10 +49,16 @@ func Versions(ctx context.Context, typ string) ([]string, error) {
 	switch typ {
 	case store.TypeVanilla:
 		list, err = vanillaVersions(ctx)
-	case store.TypePaper:
-		list, err = paperVersions(ctx)
+	case store.TypePaper, store.TypeFolia, store.TypeVelocity:
+		list, err = fillVersions(ctx, typ)
+	case store.TypePurpur:
+		list, err = purpurVersions(ctx)
 	case store.TypeFabric:
 		list, err = fabricVersions(ctx)
+	case store.TypeNeoForge:
+		list, err = neoForgeVersions(ctx)
+	case store.TypeForge:
+		list, err = forgeVersions(ctx)
 	case store.TypeBedrock:
 		list = []string{"latest"}
 	default:
@@ -78,10 +84,18 @@ func Install(ctx context.Context, dataDir, typ, version, dir string, logf Logf) 
 	switch typ {
 	case store.TypeVanilla:
 		res, err = installVanilla(ctx, version, dir, logf)
-	case store.TypePaper:
-		res, err = installPaper(ctx, version, dir, logf)
+	case store.TypePaper, store.TypeFolia:
+		res, err = installFill(ctx, typ, version, dir, logf)
+	case store.TypeVelocity:
+		res, err = installVelocity(ctx, version, dir, logf)
+	case store.TypePurpur:
+		res, err = installPurpur(ctx, version, dir, logf)
 	case store.TypeFabric:
 		res, err = installFabric(ctx, version, dir, logf)
+	case store.TypeNeoForge:
+		res, err = installNeoForge(ctx, dataDir, version, dir, logf)
+	case store.TypeForge:
+		res, err = installForge(ctx, dataDir, version, dir, logf)
 	case store.TypeBedrock:
 		res, err = installBedrock(ctx, dir, logf)
 	default:
@@ -94,6 +108,8 @@ func Install(ctx context.Context, dataDir, typ, version, dir string, logf Logf) 
 		if _, err := JavaPath(ctx, dataDir, res.JavaMajor, logf); err != nil {
 			return res, err
 		}
+	}
+	if store.HasWorld(typ) && store.IsJava(typ) {
 		if err := os.WriteFile(filepath.Join(dir, "eula.txt"), []byte("eula=true\n"), 0o644); err != nil {
 			return res, err
 		}
@@ -102,16 +118,24 @@ func Install(ctx context.Context, dataDir, typ, version, dir string, logf Logf) 
 }
 
 // LatestBuild returns the newest build that reinstalling sv's current
-// version would get: the Paper build number, the Fabric loader version, or the
-// Bedrock release. It returns "" for Vanilla, which has no builds.
+// version would get: the Paper, Purpur, Folia or Velocity build number, the
+// Fabric, NeoForge or Forge loader version, or the Bedrock release. It
+// returns "" for Vanilla, which has no builds.
 func LatestBuild(ctx context.Context, sv store.Server) (string, error) {
 	switch sv.Type {
-	case store.TypePaper:
-		b, err := latestPaperBuild(ctx, sv.Version)
+	case store.TypePaper, store.TypeFolia, store.TypeVelocity:
+		b, err := latestFillBuild(ctx, sv.Type, sv.Version)
 		if err != nil {
 			return "", err
 		}
 		return strconv.Itoa(b.ID), nil
+	case store.TypePurpur:
+		b, err := latestPurpurBuild(ctx, sv.Version)
+		return b.Build, err
+	case store.TypeNeoForge:
+		return latestNeoForge(ctx, sv.Version)
+	case store.TypeForge:
+		return latestForge(ctx, sv.Version)
 	case store.TypeFabric:
 		return latestStable(ctx, "https://meta.fabricmc.net/v2/versions/loader")
 	case store.TypeBedrock:
@@ -225,19 +249,21 @@ func installVanilla(ctx context.Context, version, dir string, logf Logf) (Result
 	return Result{Version: version, Executable: "server.jar", JavaMajor: vi.JavaVersion.MajorVersion}, err
 }
 
-// --- Paper ---
+// --- Paper, Folia and Velocity (PaperMC's Fill service) ---
 
-func paperVersions(ctx context.Context) ([]string, error) {
+func fillVersions(ctx context.Context, project string) ([]string, error) {
 	var p struct {
 		Versions map[string][]string `json:"versions"`
 	}
-	if err := GetJSON(ctx, "https://fill.papermc.io/v3/projects/paper", &p); err != nil {
+	if err := GetJSON(ctx, "https://fill.papermc.io/v3/projects/"+project, &p); err != nil {
 		return nil, err
 	}
 	var out []string
 	for _, vs := range p.Versions {
 		for _, v := range vs {
-			if !strings.Contains(v, "-") {
+			// Skips pre-releases, Velocity's snapshots and its first,
+			// long unsupported releases.
+			if !strings.Contains(v, "-") && (project != store.TypeVelocity || CompareVersions(v, "3") >= 0) {
 				out = append(out, v)
 			}
 		}
@@ -257,27 +283,32 @@ type paperBuild struct {
 	} `json:"downloads"`
 }
 
-func latestPaperBuild(ctx context.Context, version string) (paperBuild, error) {
+func latestFillBuild(ctx context.Context, project, version string) (paperBuild, error) {
 	var b paperBuild
-	err := GetJSON(ctx, fmt.Sprintf("https://fill.papermc.io/v3/projects/paper/versions/%s/builds/latest", version), &b)
+	err := GetJSON(ctx, fmt.Sprintf("https://fill.papermc.io/v3/projects/%s/versions/%s/builds/latest", project, version), &b)
 	return b, err
 }
 
-func installPaper(ctx context.Context, version, dir string, logf Logf) (Result, error) {
-	b, err := latestPaperBuild(ctx, version)
+// downloadFill fetches the newest build of a Fill project's version to dst.
+func downloadFill(ctx context.Context, project, version, dst string, logf Logf) (paperBuild, error) {
+	b, err := latestFillBuild(ctx, project, version)
 	if err != nil {
-		return Result{}, err
+		return b, err
 	}
 	d, ok := b.Downloads["server:default"]
 	if !ok {
-		return Result{}, fmt.Errorf("no Paper download for %s", version)
+		return b, fmt.Errorf("no %s download for %s", store.TypeLabel(project), version)
 	}
+	logf("Downloading %s %s build %d", store.TypeLabel(project), version, b.ID)
+	return b, Download(ctx, d.URL, dst, Checksum{"sha256", d.Checksums.SHA256}, logf)
+}
+
+func installFill(ctx context.Context, project, version, dir string, logf Logf) (Result, error) {
 	major, err := JavaMajorFor(ctx, version)
 	if err != nil {
 		return Result{}, err
 	}
-	logf("Downloading Paper %s build %d", version, b.ID)
-	err = Download(ctx, d.URL, filepath.Join(dir, "server.jar"), Checksum{"sha256", d.Checksums.SHA256}, logf)
+	b, err := downloadFill(ctx, project, version, filepath.Join(dir, "server.jar"), logf)
 	return Result{Version: version, Build: strconv.Itoa(b.ID), Executable: "server.jar", JavaMajor: major}, err
 }
 
@@ -424,16 +455,17 @@ func SortVersionsDesc(vs []string) {
 	sort.Slice(vs, func(i, j int) bool { return CompareVersions(vs[i], vs[j]) > 0 })
 }
 
-// CompareVersions compares dotted numeric versions.
+// CompareVersions compares dotted numeric versions. Anything after the
+// digits of a part, such as "-beta", is ignored.
 func CompareVersions(a, b string) int {
 	as, bs := strings.Split(a, "."), strings.Split(b, ".")
 	for i := 0; i < len(as) || i < len(bs); i++ {
 		var x, y int
 		if i < len(as) {
-			x, _ = strconv.Atoi(as[i])
+			x = leadingInt(as[i])
 		}
 		if i < len(bs) {
-			y, _ = strconv.Atoi(bs[i])
+			y = leadingInt(bs[i])
 		}
 		if x != y {
 			if x < y {
@@ -443,4 +475,13 @@ func CompareVersions(a, b string) int {
 		}
 	}
 	return 0
+}
+
+func leadingInt(s string) int {
+	n := 0
+	for n < len(s) && s[n] >= '0' && s[n] <= '9' {
+		n++
+	}
+	v, _ := strconv.Atoi(s[:n])
+	return v
 }

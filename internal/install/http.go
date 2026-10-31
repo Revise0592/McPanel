@@ -3,6 +3,7 @@ package install
 import (
 	"bytes"
 	"context"
+	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -89,7 +90,7 @@ func PostJSON(ctx context.Context, url string, body, v any) error {
 
 // Checksum names an expected digest of a download.
 type Checksum struct {
-	Algo string // "sha1", "sha256", "sha512" or ""
+	Algo string // "md5", "sha1", "sha256", "sha512" or ""
 	Hex  string
 }
 
@@ -110,6 +111,8 @@ func Download(ctx context.Context, url, dst string, sum Checksum, logf Logf) err
 	}
 	var h hash.Hash
 	switch sum.Algo {
+	case "md5":
+		h = md5.New()
 	case "sha1":
 		h = sha1.New()
 	case "sha256":

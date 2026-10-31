@@ -21,6 +21,7 @@ import (
 	"github.com/Revise0592/McPanel/internal/mc"
 	"github.com/Revise0592/McPanel/internal/props"
 	"github.com/Revise0592/McPanel/internal/store"
+	"github.com/Revise0592/McPanel/internal/velocity"
 )
 
 // field is one labelled control for a server.properties key.
@@ -88,6 +89,16 @@ type settingsData struct {
 	// servers are set to use, so the page can warn about overcommitting.
 	HostMB   int
 	OthersMB int
+	// SleepChoices are the idle times offered, in minutes.
+	SleepChoices []int
+	// StatusURL is the full address of the public status page, if it's on.
+	StatusURL string
+	// Proxy holds a Velocity proxy's settings, and Backends the servers
+	// it can link.
+	Proxy    velocity.Settings
+	Backends []backendChoice
+	// RawFile is the settings file the Advanced section edits.
+	RawFile string
 }
 
 // MemoryWarning says when the servers together are set to use more memory
@@ -96,7 +107,7 @@ func (d settingsData) MemoryWarning() bool {
 	return d.HostMB > 0 && d.OthersMB+cmp.Or(d.MemoryMB, 2048) > d.HostMB*9/10
 }
 
-var settingsSections = []string{"general", "game", "version", "advanced"}
+var settingsSections = []string{"general", "game", "network", "version", "advanced"}
 
 // settingsURL is the address of one section of a server's settings.
 func settingsURL(id, section string) string {
@@ -113,23 +124,43 @@ func (a *App) settingsPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := settingsData{serverView: a.view(r, sv), Section: r.URL.Query().Get("s")}
-	if !slices.Contains(settingsSections, d.Section) {
+	if !slices.Contains(settingsSections, d.Section) || (d.Section == "network" && !store.IsProxy(sv.Type)) {
 		d.Section = "general"
 	}
+	d.RawFile = settingsFile(sv)
 	switch d.Section {
 	case "general":
 		d.Memory = []int{1024, 2048, 3072, 4096, 6144, 8192, 12288, 16384}
+		if store.IsProxy(sv.Type) {
+			d.Memory = []int{512, 1024, 2048}
+		}
 		if !slices.Contains(d.Memory, sv.MemoryMB) && sv.MemoryMB > 0 {
 			d.Memory = append(d.Memory, sv.MemoryMB)
 			slices.Sort(d.Memory)
 		}
 		d.HostMB = mc.HostMemoryMB()
+		if sv.StatusToken != "" {
+			d.StatusURL = statusPageURL(r, sv.StatusToken)
+		}
+		d.SleepChoices = mc.SleepChoices
+		if sv.SleepAfterMins > 0 && !slices.Contains(d.SleepChoices, sv.SleepAfterMins) {
+			d.SleepChoices = append(slices.Clone(d.SleepChoices), sv.SleepAfterMins)
+			slices.Sort(d.SleepChoices)
+		}
 		for _, o := range a.Store.Servers() {
 			if o.ID != sv.ID && store.IsJava(o.Type) {
-				d.OthersMB += cmp.Or(o.MemoryMB, 2048)
+				d.OthersMB += cmp.Or(o.MemoryMB, mc.DefaultMemoryMB(o.Type))
 			}
 		}
+	case "network":
+		d.Backends = a.networkChoices(sv)
 	case "game", "advanced":
+		if store.IsProxy(sv.Type) {
+			d.Proxy = velocity.Read(inst.Dir())
+			b, _ := os.ReadFile(filepath.Join(inst.Dir(), velocity.ConfigFile))
+			d.Raw = string(b)
+			break
+		}
 		f, err := props.Load(propsPath(inst))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -162,6 +193,10 @@ func (a *App) saveGameSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	to := settingsURL(sv.ID, "game")
+	if store.IsProxy(sv.Type) {
+		http.NotFound(w, r)
+		return
+	}
 	f, err := props.Load(propsPath(inst))
 	if err != nil {
 		setError(w, err.Error())
@@ -254,6 +289,9 @@ func (a *App) saveServerSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		s.AutoStart = r.FormValue("autoStart") == "on"
 		s.RestartOnCrash = r.FormValue("restartOnCrash") == "on"
+		if r.Form.Has("sleepAfter") {
+			s.SleepAfterMins = formInt(r, "sleepAfter", 0, 0, 24*60)
+		}
 		if store.IsJava(s.Type) {
 			s.MemoryMB = formInt(r, "memory", s.MemoryMB, 512, 65536)
 			s.TunedFlags = r.FormValue("tunedFlags") == "on"
@@ -298,6 +336,16 @@ func validJoinAddress(s string) bool {
 func (a *App) saveRawProperties(w http.ResponseWriter, r *http.Request) {
 	sv, inst, ok := a.load(w, r)
 	if !ok {
+		return
+	}
+	if store.IsProxy(sv.Type) {
+		raw := strings.ReplaceAll(r.FormValue("raw"), "\r\n", "\n")
+		if err := os.WriteFile(filepath.Join(inst.Dir(), velocity.ConfigFile), []byte(raw), 0o644); err != nil {
+			setError(w, err.Error())
+		} else {
+			setFlash(w, velocity.ConfigFile+" saved."+restartHint(inst))
+		}
+		back(w, r, settingsURL(sv.ID, "advanced"))
 		return
 	}
 	f, err := props.Load(propsPath(inst))

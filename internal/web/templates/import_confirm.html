@@ -7,7 +7,7 @@
     <li><span class="name muted">Type</span><span>{{if $d.WorldOnly}}A single world{{else}}{{typeLabel $d.Type}} server{{end}}</span></li>
     {{if ne $d.Type "bedrock"}}<li><span class="name muted">Minecraft version</span><span>{{if $d.Version}}{{$d.Version}}{{else}}Couldn't tell{{end}}</span></li>{{end}}
     <li><span class="name muted">Worlds</span><span>{{if $d.Worlds}}{{range $i, $w := $d.Worlds}}{{if $i}}, {{end}}{{$w}}{{end}}{{else}}None yet{{end}}</span></li>
-    {{if $d.Addons}}<li><span class="name muted">{{if eq $d.Type "fabric"}}Mods{{else}}Plugins{{end}}</span><span>{{$d.Addons}}</span></li>{{end}}
+    {{if $d.Addons}}<li><span class="name muted">{{if isModded $d.Type}}Mods{{else}}Plugins{{end}}</span><span>{{$d.Addons}}</span></li>{{end}}
   </ul>
   {{range $d.Notes}}<p class="muted small" style="margin-top:.75rem">{{.}}</p>{{end}}
 </div>
@@ -21,11 +21,24 @@
   </div>
   <div class="field">
     <label>Type</label>
-    <div class="segmented" data-type-picker hx-get="/versions" hx-trigger="change" hx-target="#versions" hx-include="[name='type']">
-      <label><input type="radio" name="type" value="paper" {{if eq $d.Type "paper"}}checked{{end}}>Paper<span>Java, supports plugins</span></label>
-      <label><input type="radio" name="type" value="vanilla" {{if eq $d.Type "vanilla"}}checked{{end}}>Vanilla<span>Java, unmodified</span></label>
-      <label><input type="radio" name="type" value="fabric" {{if eq $d.Type "fabric"}}checked{{end}}>Fabric<span>Java, supports mods</span></label>
-      <label><input type="radio" name="type" value="bedrock" {{if eq $d.Type "bedrock"}}checked{{end}}>Bedrock<span>Phones, consoles, Windows</span></label>
+    <div class="type-groups" data-type-picker hx-get="/versions" hx-trigger="change" hx-target="#versions" hx-include="[name='type']">
+      <div class="type-group"><span class="type-group-label">With plugins</span>
+        <div class="segmented">
+          <label><input type="radio" name="type" value="paper" {{if eq $d.Type "paper"}}checked{{end}}>Paper<span>Fast, the most plugins</span></label>
+          <label><input type="radio" name="type" value="purpur" {{if eq $d.Type "purpur"}}checked{{end}}>Purpur<span>Paper with more settings</span></label>
+          <label><input type="radio" name="type" value="folia" {{if eq $d.Type "folia"}}checked{{end}}>Folia<span>For very busy servers</span></label>
+        </div></div>
+      <div class="type-group"><span class="type-group-label">With mods</span>
+        <div class="segmented">
+          <label><input type="radio" name="type" value="fabric" {{if eq $d.Type "fabric"}}checked{{end}}>Fabric<span>Light, quick to update</span></label>
+          <label><input type="radio" name="type" value="neoforge" {{if eq $d.Type "neoforge"}}checked{{end}}>NeoForge<span>Most big modpacks</span></label>
+          <label><input type="radio" name="type" value="forge" {{if eq $d.Type "forge"}}checked{{end}}>Forge<span>Older modpacks</span></label>
+        </div></div>
+      <div class="type-group"><span class="type-group-label">Other</span>
+        <div class="segmented">
+          <label><input type="radio" name="type" value="vanilla" {{if eq $d.Type "vanilla"}}checked{{end}}>Vanilla<span>Java, unmodified</span></label>
+          <label><input type="radio" name="type" value="bedrock" {{if eq $d.Type "bedrock"}}checked{{end}}>Bedrock<span>Phones, consoles, Windows</span></label>
+        </div></div>
     </div>
   </div>
   <div class="fields">

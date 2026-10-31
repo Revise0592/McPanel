@@ -6,7 +6,12 @@
 <div class="settings-layout">
   <nav class="subnav" aria-label="Settings sections">
     <a href="{{$base}}" {{if eq $v.Section "general"}}class="active" aria-current="page"{{end}}>General</a>
+    {{if eq $v.Type "velocity"}}
+    <a href="{{$base}}?s=game" {{if eq $v.Section "game"}}class="active" aria-current="page"{{end}}>Proxy</a>
+    <a href="{{$base}}?s=network" {{if eq $v.Section "network"}}class="active" aria-current="page"{{end}}>Servers</a>
+    {{else}}
     <a href="{{$base}}?s=game" {{if eq $v.Section "game"}}class="active" aria-current="page"{{end}}>Game</a>
+    {{end}}
     <a href="{{$base}}?s=version" {{if eq $v.Section "version"}}class="active" aria-current="page"{{end}}>Version</a>
     <a href="{{$base}}?s=advanced" {{if eq $v.Section "advanced"}}class="active" aria-current="page"{{end}}>Advanced</a>
   </nav>
@@ -58,6 +63,14 @@
           <span><strong>Start when McPanel starts</strong></span></label>
       </div>
       <div class="field">
+        <label for="sleepAfter">Sleep when nobody is on</label>
+        <select id="sleepAfter" name="sleepAfter" style="max-width:16rem">
+          <option value="0">Never</option>
+          {{range $v.SleepChoices}}<option value="{{.}}" {{if eq . $v.SleepAfterMins}}selected{{end}}>After {{if lt . 60}}{{.}} minutes{{else if eq . 60}}1 hour{{else}}{{div . 60}} hours{{end}}</option>{{end}}
+        </select>
+        <div class="help">Stops the server to free memory and CPU. It still shows in the multiplayer list, and starts again when someone joins. That player waits about a minute and then joins again.</div>
+      </div>
+      <div class="field">
         <label class="check"><input type="checkbox" name="restartOnCrash" {{if $v.RestartOnCrash}}checked{{end}}>
           <span><strong>Restart if it crashes</strong><span class="help" style="display:block">Gives up after 3 crashes in 10 minutes.</span></span></label>
       </div>
@@ -80,6 +93,73 @@
       </div>
     </div>
     {{end}}
+
+    <div class="card" id="status-page">
+      <h2>Status page</h2>
+      <p class="desc">A public page that shows whether the server is up, who's on and how to join. Anyone with the link can see it, but they can't change anything.</p>
+      {{if $v.StatusToken}}
+      <div class="status-link">
+        <a class="mono" href="/s/{{$v.StatusToken}}" target="_blank" rel="noopener">{{$v.StatusURL}}</a>
+        <button class="btn small ghost" type="button" data-copy="{{$v.StatusURL}}">Copy link</button>
+      </div>
+      <form class="row" method="post" action="{{$base}}/status-page" style="margin-top:.75rem">
+        <button class="btn small" name="action" value="new" data-confirm="Make a new link? The old link stops working.">New link</button>
+        <button class="btn small ghost danger" name="action" value="off">Turn off</button>
+      </form>
+      {{else}}
+      <form method="post" action="{{$base}}/status-page"><button class="btn" name="action" value="on">Turn on</button></form>
+      {{end}}
+    </div>
+
+  {{else if and (eq $v.Section "game") (eq $v.Type "velocity")}}
+    <form class="card" method="post" action="{{$base}}/proxy">
+      <h2>Proxy</h2>
+      <p class="desc">Saved to velocity.toml.</p>
+      <div class="field">
+        <label for="motd">Server description</label>
+        <input type="text" id="motd" name="motd" value="{{$v.Proxy.MOTD}}">
+        <div class="help">Shown under the server name in the multiplayer list. Colours use <a href="https://docs.advntr.dev/minimessage/format.html" target="_blank" rel="noopener">MiniMessage</a> tags, such as &lt;green&gt;.</div>
+      </div>
+      <div class="fields">
+        <div class="field">
+          <label for="maxPlayers">Max players shown</label>
+          <input type="number" id="maxPlayers" name="maxPlayers" value="{{$v.Proxy.MaxPlayers}}" min="0">
+          <div class="help">Only for the multiplayer list; it doesn't limit anyone.</div>
+        </div>
+        <div class="field">
+          <label for="port">Port</label>
+          <input type="number" id="port" name="port" value="{{$v.Proxy.Port}}" min="1" max="65535">
+        </div>
+      </div>
+      <div class="form-actions"><button class="btn primary">Save proxy settings</button></div>
+    </form>
+
+  {{else if eq $v.Section "network"}}
+    <form class="card" method="post" action="{{$base}}/network">
+      <h2>Linked servers</h2>
+      <p class="desc">Players join {{$v.Name}} and it sends them on to these servers. In game, <span class="mono">/server</span> moves between them. Linked servers only accept players sent by the proxy, and Minecraft accounts are checked by the proxy instead.</p>
+      {{if $v.Backends}}
+      <div class="table-scroll">
+      <table class="backends">
+        <thead><tr><th>Linked</th><th>Server</th><th>Players start here</th></tr></thead>
+        <tbody>
+        {{range $v.Backends}}
+          <tr>
+            <td><input type="checkbox" name="backend" value="{{.ID}}" aria-label="Link {{.Name}}" {{if .Linked}}checked{{end}} {{if .OtherOf}}disabled{{end}}></td>
+            <td><strong>{{.Name}}</strong> <span class="muted small">{{typeLabel .Type}}, port {{.Port}}</span>
+              {{if .OtherOf}}<div class="help">Linked to {{.OtherOf}}.</div>
+              {{else if not .Ready}}<div class="help warn">Start it once first, so it creates its settings files.</div>{{end}}</td>
+            <td><input type="radio" name="start" value="{{.ID}}" aria-label="Players start on {{.Name}}" {{if .Start}}checked{{end}} {{if .OtherOf}}disabled{{end}}></td>
+          </tr>
+        {{end}}
+        </tbody>
+      </table>
+      </div>
+      <div class="form-actions"><button class="btn primary">Save</button></div>
+      {{else}}
+      <p class="muted">There are no Paper, Purpur or Folia servers to link yet. Make one, start it once, then come back here.</p>
+      {{end}}
+    </form>
 
   {{else if eq $v.Section "game"}}
     <form class="card" method="post" action="{{$base}}/game">
@@ -119,7 +199,7 @@
       <h2>Updates</h2>
       {{if $v.NewBuild}}
       <p class="desc">{{if eq $v.Type "bedrock"}}Bedrock {{$v.NewBuild}} is available. You have {{$v.Version}}.
-        {{else if eq $v.Type "fabric"}}Fabric loader {{$v.NewBuild}} is available. You have {{$v.Build}}.
+        {{else if isModded $v.Type}}{{typeLabel $v.Type}} loader {{$v.NewBuild}} is available. You have {{$v.Build}}.
         {{else}}{{typeLabel $v.Type}} {{$v.Version}} build {{$v.NewBuild}} is available. You have build {{$v.Build}}.{{end}}</p>
       <form class="inline" method="post" action="{{$base}}/version" data-confirm="Update now? The server will stop, be backed up, then update and start again if it was running.">
         <input type="hidden" name="version" value="{{$v.Version}}">
@@ -141,14 +221,14 @@
 
     <form class="card" method="post" action="{{$base}}/version" data-confirm="Change version? The server will stop, be backed up, then update. Going back to an older version can break worlds.">
       <h2>Version</h2>
-      <p class="desc">Currently {{typeLabel $v.Type}} {{$v.Version}}{{if $v.Build}} ({{if eq $v.Type "fabric"}}loader{{else}}build{{end}} {{$v.Build}}){{end}}. Worlds and settings are kept.</p>
+      <p class="desc">Currently {{typeLabel $v.Type}} {{$v.Version}}{{if $v.Build}} ({{if isModded $v.Type}}loader{{else}}build{{end}} {{$v.Build}}){{end}}. Worlds and settings are kept.</p>
       <div class="row">
         <select name="version" style="max-width:16rem" aria-label="Version">
           {{range $v.Versions}}<option value="{{.}}" {{if eq . $v.Version}}selected{{end}}>{{if eq . "latest"}}Latest release{{else}}{{.}}{{end}}</option>{{end}}
         </select>
         <button class="btn">{{if eq $v.Type "bedrock"}}Update{{else}}Install{{end}}</button>
       </div>
-      <p class="muted small" style="margin-top:.75rem">Picking the current version re-downloads it{{if eq $v.Type "paper"}} with the newest Paper build{{end}}{{if eq $v.Type "fabric"}} with the newest loader{{end}}.</p>
+      <p class="muted small" style="margin-top:.75rem">Picking the current version re-downloads it{{if and $v.Build (not (isModded $v.Type))}} with the newest {{typeLabel $v.Type}} build{{end}}{{if isModded $v.Type}} with the newest loader{{end}}.{{if isModded $v.Type}} Check that your mods have releases for a new Minecraft version before changing to it.{{end}}</p>
     </form>
 
     {{if eq $v.Type "bedrock"}}
@@ -165,9 +245,9 @@
 
   {{else}}
     <form class="card" method="post" action="{{$base}}/raw">
-      <h2>server.properties</h2>
-      <p class="desc">Edit the file directly. Settings on the Game page are saved here too.</p>
-      <textarea name="raw" spellcheck="false" aria-label="server.properties">{{$v.Raw}}</textarea>
+      <h2>{{$v.RawFile}}</h2>
+      <p class="desc">Edit the file directly. Settings on the {{if eq $v.Type "velocity"}}Proxy and Servers pages{{else}}Game page{{end}} are saved here too.</p>
+      <textarea name="raw" spellcheck="false" aria-label="{{$v.RawFile}}">{{$v.Raw}}</textarea>
       <div class="form-actions"><button class="btn">Save file</button></div>
     </form>
 
