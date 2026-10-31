@@ -176,26 +176,40 @@ func formInt(r *http.Request, key string, def, lo, hi int) int {
 }
 
 func (a *App) createServer(w http.ResponseWriter, r *http.Request) {
-	fail := func(msg string) {
-		setError(w, msg)
-		back(w, r, "/servers/new")
-	}
-	name := strings.TrimSpace(r.FormValue("name"))
 	typ := r.FormValue("type")
 	version := r.FormValue("version")
+	if !slices.Contains(serverTypes, typ) {
+		setError(w, "Pick a server type.")
+		back(w, r, "/servers/new")
+		return
+	}
+	sv, ok := a.addServer(w, r, "/servers/new", typ, version, nil)
+	if !ok {
+		return
+	}
+	go a.Mgr.Install(sv.ID, version, nil)
+	setFlash(w, "Downloading the server files. You can watch progress below.")
+	back(w, r, "/servers/"+sv.ID)
+}
+
+// addServer checks the new server form (name, port, EULA, game settings)
+// and saves a server of type typ, not yet installed. On a problem it says
+// so and sends the browser back to failTo. extra, if set, adjusts the server
+// before it's saved.
+func (a *App) addServer(w http.ResponseWriter, r *http.Request, failTo, typ, version string, extra func(*store.Server)) (store.Server, bool) {
+	fail := func(msg string) (store.Server, bool) {
+		setError(w, msg)
+		back(w, r, failTo)
+		return store.Server{}, false
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
 	switch {
 	case name == "" || len(name) > 40:
-		fail("Give the server a name (up to 40 characters).")
-		return
-	case !slices.Contains(serverTypes, typ):
-		fail("Pick a server type.")
-		return
+		return fail("Give the server a name (up to 40 characters).")
 	case version == "":
-		fail("Pick a version.")
-		return
+		return fail("Pick a version.")
 	case store.HasWorld(typ) && r.FormValue("eula") != "on":
-		fail("You need to accept the Minecraft EULA to run a server.")
-		return
+		return fail("You need to accept the Minecraft EULA to run a server.")
 	}
 	bedrock := typ == store.TypeBedrock
 	base := 25565
@@ -206,8 +220,7 @@ func (a *App) createServer(w http.ResponseWriter, r *http.Request) {
 	if port == 0 {
 		port = a.Mgr.FreePort(base, bedrock)
 	} else if who := a.Mgr.UsedPorts("")[port]; who != "" {
-		fail(fmt.Sprintf("Port %d is already used by %s.", port, who))
-		return
+		return fail(fmt.Sprintf("Port %d is already used by %s.", port, who))
 	}
 
 	kv := map[string]string{"server-port": strconv.Itoa(port)}
@@ -231,7 +244,7 @@ func (a *App) createServer(w http.ResponseWriter, r *http.Request) {
 		kv["white-list"] = whitelist
 		kv["enforce-whitelist"] = whitelist
 	}
-	sv, err := a.Store.AddServer(store.Server{
+	def := store.Server{
 		Name:             name,
 		Type:             typ,
 		Version:          version,
@@ -241,14 +254,15 @@ func (a *App) createServer(w http.ResponseWriter, r *http.Request) {
 		BackupEveryHours: 24,
 		BackupKeep:       7,
 		InitialProps:     kv,
-	})
-	if err != nil {
-		fail(err.Error())
-		return
 	}
-	go a.Mgr.Install(sv.ID, version, nil)
-	setFlash(w, "Downloading the server files. You can watch progress below.")
-	back(w, r, "/servers/"+sv.ID)
+	if extra != nil {
+		extra(&def)
+	}
+	sv, err := a.Store.AddServer(def)
+	if err != nil {
+		return fail(err.Error())
+	}
+	return sv, true
 }
 
 func (a *App) consolePage(w http.ResponseWriter, r *http.Request) {

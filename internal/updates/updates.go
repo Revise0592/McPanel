@@ -80,7 +80,9 @@ func (c *Checker) Check(ctx context.Context, id string) Info {
 	} else {
 		in.LatestBuild = b
 	}
-	if addons.Supported(sv.Type) {
+	// A modpack's mods are chosen to work together, so single updates
+	// aren't offered.
+	if addons.Supported(sv.Type) && sv.Modpack == nil {
 		if inst, err := c.mgr.Get(id); err == nil {
 			if u, err := addons.CheckUpdates(ctx, sv.Type, sv.Version, inst.Dir()); err != nil {
 				in.Err = err.Error()

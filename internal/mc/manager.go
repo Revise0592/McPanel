@@ -11,6 +11,7 @@ import (
 
 	"github.com/Revise0592/McPanel/internal/activity"
 	"github.com/Revise0592/McPanel/internal/install"
+	"github.com/Revise0592/McPanel/internal/modpack"
 	"github.com/Revise0592/McPanel/internal/props"
 	"github.com/Revise0592/McPanel/internal/store"
 	"github.com/Revise0592/McPanel/internal/velocity"
@@ -107,6 +108,37 @@ func (m *Manager) Install(id, version string, before func(*Instance) error) erro
 	})
 }
 
+// InstallModpack sets a server up from a Modrinth modpack: the loader
+// version the pack asks for, then its mods and settings files. fetch
+// returns the .mrpack's path, downloading it if needed; the file is removed
+// afterwards. It blocks; run it in a goroutine.
+func (m *Manager) InstallModpack(id string, fetch func(ctx context.Context, logf install.Logf) (string, error)) error {
+	return m.install(id, nil, func(ctx context.Context, def store.Server, inst *Instance) (install.Result, error) {
+		path, err := fetch(ctx, inst.Logf)
+		if err != nil {
+			return install.Result{}, err
+		}
+		defer os.Remove(path)
+		p, err := modpack.Read(path)
+		if err != nil {
+			return install.Result{}, err
+		}
+		if p.Type != def.Type {
+			return install.Result{}, fmt.Errorf("the pack is for %s, not %s", store.TypeLabel(p.Type), store.TypeLabel(def.Type))
+		}
+		res, err := install.InstallLoader(ctx, m.dataDir, p.Type, p.Minecraft, p.Loader, inst.Dir(), inst.Logf)
+		if err != nil {
+			return res, err
+		}
+		inst.SetProgress(0, p.Size)
+		if err := modpack.Apply(ctx, path, p, inst.Dir(), inst.SetProgress, inst.Logf); err != nil {
+			return res, err
+		}
+		inst.Logf("Set up %s %s", p.Name, p.Version)
+		return res, nil
+	})
+}
+
 // InstallBedrockZip installs a Bedrock server from an uploaded zip, which is
 // removed afterwards.
 func (m *Manager) InstallBedrockZip(id, zipPath, version string, before func(*Instance) error) error {
@@ -200,8 +232,13 @@ func (m *Manager) install(id string, before func(*Instance) error, run installFu
 		return err
 	}
 	label := store.TypeLabel(def.Type) + " " + res.Version
-	if res.Build != "" {
+	if res.Build != "" && store.IsModded(def.Type) {
+		label += " (loader " + res.Build + ")"
+	} else if res.Build != "" {
 		label += " (build " + res.Build + ")"
+	}
+	if def.Modpack != nil && !def.Installed {
+		label = def.Modpack.Name + " " + def.Modpack.Version + " on " + label
 	}
 	inst.Logf("Installed %s. Ready to start.", label)
 	m.activity.Add(id, activity.Event{Text: "Installed " + label})

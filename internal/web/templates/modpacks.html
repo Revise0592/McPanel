@@ -1,0 +1,44 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="page-head"><h1>New server from a modpack</h1></div>
+<div class="stack">
+  <div class="card">
+    <h2>Find a modpack</h2>
+    <p class="desc">From Modrinth, showing packs that run on servers with Fabric, NeoForge or Forge. Mods that are only for players' computers are left out of the server.</p>
+    <input type="search" name="q" value="{{$d.Query}}" placeholder="Search, e.g. Cobblemon or Create" aria-label="Search modpacks"
+      hx-get="/modpacks/search" hx-trigger="input changed delay:400ms, search" hx-target="#pack-results">
+    <div id="pack-results">{{template "modpack-results" $d}}</div>
+  </div>
+
+  <form class="card" method="post" action="/modpacks/upload" enctype="multipart/form-data" data-busy="Uploading…">
+    <h2>Upload a .mrpack</h2>
+    <p class="desc">A modpack file exported from the Modrinth app, Prism Launcher or a pack's download page.</p>
+    <div class="field">
+      <label for="pack">Modpack file</label>
+      <input type="file" id="pack" name="pack" accept=".mrpack" required>
+    </div>
+    <div class="fields">
+      <div class="field">
+        <label for="up-name">Name</label>
+        <input type="text" id="up-name" name="name" maxlength="40" placeholder="The pack's name">
+      </div>
+      <div class="field">
+        <label for="up-memory">Memory</label>
+        <select id="up-memory" name="memory">{{range $d.Memory}}<option value="{{.}}" {{if eq . 4096}}selected{{end}}>{{gb .}}</option>{{end}}</select>
+      </div>
+      <div class="field">
+        <label for="up-port">Port</label>
+        <input type="number" id="up-port" name="port" min="1" max="65535" placeholder="Automatic (25565+)">
+      </div>
+    </div>
+    <div class="field">
+      <label class="check"><input type="checkbox" name="eula" required>
+        <span>I accept the <a href="https://www.minecraft.net/eula" target="_blank" rel="noopener">Minecraft EULA</a>.</span></label>
+    </div>
+    <div class="form-actions">
+      <a class="btn ghost" href="/servers/new">Cancel</a>
+      <button class="btn primary">Upload and create</button>
+    </div>
+  </form>
+</div>
+{{end}}

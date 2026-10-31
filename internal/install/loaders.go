@@ -183,10 +183,12 @@ func latestNeoForge(ctx context.Context, mc string) (string, error) {
 	return "", fmt.Errorf("no NeoForge release for Minecraft %s", mc)
 }
 
-func installNeoForge(ctx context.Context, dataDir, mc, dir string, logf Logf) (Result, error) {
-	v, err := latestNeoForge(ctx, mc)
-	if err != nil {
-		return Result{}, err
+func installNeoForge(ctx context.Context, dataDir, mc, v, dir string, logf Logf) (Result, error) {
+	var err error
+	if v == "" {
+		if v, err = latestNeoForge(ctx, mc); err != nil {
+			return Result{}, err
+		}
 	}
 	url := fmt.Sprintf("%s%s/neoforge-%s-installer.jar", neoMaven, v, v)
 	args := fmt.Sprintf("libraries/net/neoforged/neoforge/%s/unix_args.txt", v)
@@ -247,10 +249,12 @@ func latestForge(ctx context.Context, mc string) (string, error) {
 	return "", fmt.Errorf("no Forge release for Minecraft %s", mc)
 }
 
-func installForge(ctx context.Context, dataDir, mc, dir string, logf Logf) (Result, error) {
-	v, err := latestForge(ctx, mc)
-	if err != nil {
-		return Result{}, err
+func installForge(ctx context.Context, dataDir, mc, v, dir string, logf Logf) (Result, error) {
+	var err error
+	if v == "" {
+		if v, err = latestForge(ctx, mc); err != nil {
+			return Result{}, err
+		}
 	}
 	full := mc + "-" + v
 	url := fmt.Sprintf("%s%s/forge-%s-installer.jar", forgeMaven, full, full)

@@ -11,6 +11,7 @@ import (
 	"github.com/Revise0592/McPanel/internal/diskuse"
 	"github.com/Revise0592/McPanel/internal/geyser"
 	"github.com/Revise0592/McPanel/internal/mc"
+	"github.com/Revise0592/McPanel/internal/modpack"
 	"github.com/Revise0592/McPanel/internal/store"
 	"github.com/Revise0592/McPanel/internal/velocity"
 )
@@ -134,5 +135,44 @@ func TestRenderNewStates(t *testing.T) {
 	a.partial(w, "server-card", asleep)
 	if !strings.Contains(w.Body.String(), "Starts when someone joins") || !strings.Contains(w.Body.String(), "badge sleeping") {
 		t.Errorf("sleeping card: %s", w.Body)
+	}
+}
+
+func TestRenderModpackPages(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := New(st, mc.NewManager(dir, st), "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits := []modpack.Hit{{Slug: "cobblemon-fabric", Title: "Cobblemon", Author: "x", Categories: []string{"fabric", "adventure"}, Versions: []string{"1.20.1", "1.21.1"}}}
+	v := modpack.Version{ID: "abc", VersionNumber: "1.8.4", GameVersions: []string{"1.21.1"}, VersionType: "release", Type: store.TypeFabric}
+	pack := serverView{Server: store.Server{ID: "s", Name: "Pack", Type: store.TypeNeoForge, Version: "1.21.1", Build: "21.1.77", Installed: true,
+		Modpack: &store.Modpack{Name: "All the Mods 10", Version: "2.3"}}}
+	cases := []struct {
+		page string
+		data any
+		want string
+	}{
+		{"modpacks", modpacksData{Hits: hits, Memory: packMemory}, "Fabric · up to Minecraft 1.21.1"},
+		{"modpack", modpackData{Project: modpack.Project{Slug: "cobblemon-fabric", Title: "Cobblemon"}, Versions: []modpack.Version{v}, Memory: packMemory, Default: 4096}, "1.8.4 · Minecraft 1.21.1 · Fabric"},
+		{"modpack", modpackData{Project: modpack.Project{Slug: "x", Title: "X"}, Err: "no releases"}, "no releases"},
+		{"settings", settingsData{serverView: pack, Section: "version"}, "set up from All the Mods 10 2.3"},
+		{"addons", addonsData{serverView: pack}, "came with All the Mods 10"},
+	}
+	for _, c := range cases {
+		w := httptest.NewRecorder()
+		a.render(w, httptest.NewRequest("GET", "/", nil), c.page, "t", "servers", c.data)
+		if w.Code != 200 || !strings.Contains(w.Body.String(), c.want) {
+			t.Errorf("%s: status %d, want %q in: %s", c.page, w.Code, c.want, w.Body)
+		}
+	}
+	w := httptest.NewRecorder()
+	a.partial(w, "server-header", pack)
+	if !strings.Contains(w.Body.String(), "All the Mods 10 2.3 · NeoForge") {
+		t.Errorf("header: %s", w.Body)
 	}
 }

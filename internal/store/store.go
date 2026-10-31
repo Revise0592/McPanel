@@ -103,6 +103,8 @@ type Server struct {
 	// StatusToken is the secret part of the server's public status page
 	// address. Empty means there is no status page.
 	StatusToken string `json:"statusToken,omitempty"`
+	// Modpack is the Modrinth modpack the server was set up from, if any.
+	Modpack *Modpack `json:"modpack,omitempty"`
 	// Backends are the servers a Velocity proxy links together, in the
 	// order players are sent to them.
 	Backends         []string `json:"backends,omitempty"`
@@ -117,6 +119,16 @@ type Server struct {
 	// once the server files exist.
 	InitialProps map[string]string `json:"initialProps,omitempty"`
 	CreatedAt    time.Time         `json:"createdAt"`
+}
+
+// Modpack names the modpack release a server was set up from.
+type Modpack struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	// ProjectID and VersionID are set when it came from Modrinth rather
+	// than an uploaded file.
+	ProjectID string `json:"projectId,omitempty"`
+	VersionID string `json:"versionId,omitempty"`
 }
 
 // Task actions.

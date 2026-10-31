@@ -537,3 +537,11 @@ dl.facts dd { margin: 0; }
 .type-groups { display: grid; gap: .75rem; }
 .type-group-label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .3rem; }
 .type-group .segmented label { flex: 1 1 10rem; }
+
+/* Modpacks */
+a.pack-result { color: inherit; text-decoration: none; }
+a.pack-result:hover { border-color: var(--accent); }
+.pack-head { display: flex; gap: .9rem; align-items: flex-start; margin-bottom: 1rem; }
+.pack-head img, .pack-head .noicon { width: 56px; height: 56px; border-radius: 10px; flex: none; background: var(--surface-2); object-fit: cover; }
+.pack-head h2 { margin: 0 0 .2rem; }
+.pack-head p { margin: 0 0 .3rem; }

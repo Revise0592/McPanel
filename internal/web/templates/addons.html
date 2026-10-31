@@ -42,10 +42,11 @@
       <span class="row">
       {{if gt (len $v.AddonUpdates) 1}}<form class="inline" method="post" action="/servers/{{$v.ID}}/addons/update">
         <button class="btn small primary">Update all ({{len $v.AddonUpdates}})</button></form>{{end}}
-      <form class="inline" method="post" action="/servers/{{$v.ID}}/updates/check"><input type="hidden" name="to" value="addons">
-        <button class="btn small ghost" title="{{if $v.UpdateCheck.Checked.IsZero}}Not checked yet{{else}}Last checked {{ago $v.UpdateCheck.Checked}}{{end}}">Check for updates</button></form>
+      {{if not $v.Modpack}}      <form class="inline" method="post" action="/servers/{{$v.ID}}/updates/check"><input type="hidden" name="to" value="addons">
+        <button class="btn small ghost" title="{{if $v.UpdateCheck.Checked.IsZero}}Not checked yet{{else}}Last checked {{ago $v.UpdateCheck.Checked}}{{end}}">Check for updates</button></form>{{end}}
       </span>
     </div>
+    {{with $v.Modpack}}<p class="muted small">These came with {{.Name}} {{.Version}}. Updating them one at a time isn't offered, since the pack's mods are chosen to work together. You can still add or turn off mods.</p>{{end}}
     <ul class="list addon-list">
     {{range $v.Addons}}
       {{$up := $v.Update .}}

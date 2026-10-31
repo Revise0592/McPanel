@@ -76,6 +76,13 @@ func Versions(ctx context.Context, typ string) ([]string, error) {
 // Install downloads the server software for typ/version into dir. Existing
 // worlds and settings are kept.
 func Install(ctx context.Context, dataDir, typ, version, dir string, logf Logf) (Result, error) {
+	return InstallLoader(ctx, dataDir, typ, version, "", dir, logf)
+}
+
+// InstallLoader is Install with a given Fabric, NeoForge or Forge loader
+// version, as modpacks ask for. An empty loader means the newest; other
+// server types ignore it.
+func InstallLoader(ctx context.Context, dataDir, typ, version, loader, dir string, logf Logf) (Result, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return Result{}, err
 	}
@@ -91,11 +98,11 @@ func Install(ctx context.Context, dataDir, typ, version, dir string, logf Logf) 
 	case store.TypePurpur:
 		res, err = installPurpur(ctx, version, dir, logf)
 	case store.TypeFabric:
-		res, err = installFabric(ctx, version, dir, logf)
+		res, err = installFabric(ctx, version, loader, dir, logf)
 	case store.TypeNeoForge:
-		res, err = installNeoForge(ctx, dataDir, version, dir, logf)
+		res, err = installNeoForge(ctx, dataDir, version, loader, dir, logf)
 	case store.TypeForge:
-		res, err = installForge(ctx, dataDir, version, dir, logf)
+		res, err = installForge(ctx, dataDir, version, loader, dir, logf)
 	case store.TypeBedrock:
 		res, err = installBedrock(ctx, dir, logf)
 	default:
@@ -346,10 +353,12 @@ func latestStable(ctx context.Context, url string) (string, error) {
 	return "", fmt.Errorf("no stable release at %s", url)
 }
 
-func installFabric(ctx context.Context, version, dir string, logf Logf) (Result, error) {
-	loader, err := latestStable(ctx, "https://meta.fabricmc.net/v2/versions/loader")
-	if err != nil {
-		return Result{}, err
+func installFabric(ctx context.Context, version, loader, dir string, logf Logf) (Result, error) {
+	var err error
+	if loader == "" {
+		if loader, err = latestStable(ctx, "https://meta.fabricmc.net/v2/versions/loader"); err != nil {
+			return Result{}, err
+		}
 	}
 	installer, err := latestStable(ctx, "https://meta.fabricmc.net/v2/versions/installer")
 	if err != nil {

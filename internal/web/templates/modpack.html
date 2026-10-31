@@ -1,0 +1,46 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="page-head"><h1>New server from a modpack</h1></div>
+<form class="card" method="post" action="/modpacks/{{$d.Project.Slug}}">
+  <div class="pack-head">
+    {{if $d.Project.IconURL}}<img src="{{$d.Project.IconURL}}" alt="" width="56" height="56">{{else}}<div class="noicon"></div>{{end}}
+    <div>
+      <h2>{{$d.Project.Title}}</h2>
+      <p class="muted">{{$d.Project.Description}}</p>
+      <a class="small" href="https://modrinth.com/modpack/{{$d.Project.Slug}}" target="_blank" rel="noopener">See it on Modrinth</a>
+    </div>
+  </div>
+  {{if $d.Err}}<p class="flash error">{{$d.Err}}</p>{{else}}
+  <div class="field">
+    <label for="version">Release</label>
+    <select id="version" name="version" required>
+      {{range $i, $v := $d.Versions}}<option value="{{$v.ID}}" {{if eq $i 0}}selected{{end}}>{{$v.Label}}</option>{{end}}
+    </select>
+    <div class="help">Players need the same release of the pack in their launcher.</div>
+  </div>
+  <div class="fields">
+    <div class="field">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" maxlength="40" required value="{{$d.Project.Title}}">
+    </div>
+    <div class="field">
+      <label for="memory">Memory</label>
+      <select id="memory" name="memory">{{range $d.Memory}}<option value="{{.}}" {{if eq . $d.Default}}selected{{end}}>{{gb .}}</option>{{end}}</select>
+      <div class="help">Big packs often want 6 GB or more.</div>
+    </div>
+    <div class="field">
+      <label for="port">Port</label>
+      <input type="number" id="port" name="port" min="1" max="65535" placeholder="Automatic (25565+)">
+    </div>
+  </div>
+  <div class="field">
+    <label class="check"><input type="checkbox" name="eula" required>
+      <span>I accept the <a href="https://www.minecraft.net/eula" target="_blank" rel="noopener">Minecraft EULA</a>.</span></label>
+  </div>
+  <div class="form-actions">
+    <a class="btn ghost" href="/modpacks">Back</a>
+    <button class="btn primary">Create server</button>
+  </div>
+  {{end}}
+</form>
+{{end}}

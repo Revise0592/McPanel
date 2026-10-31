@@ -222,6 +222,7 @@
     <form class="card" method="post" action="{{$base}}/version" data-confirm="Change version? The server will stop, be backed up, then update. Going back to an older version can break worlds.">
       <h2>Version</h2>
       <p class="desc">Currently {{typeLabel $v.Type}} {{$v.Version}}{{if $v.Build}} ({{if isModded $v.Type}}loader{{else}}build{{end}} {{$v.Build}}){{end}}. Worlds and settings are kept.</p>
+      {{with $v.Modpack}}<p class="help warn">This server was set up from {{.Name}} {{.Version}}. Its mods are for Minecraft {{$v.Version}}, so changing version or loader will most likely stop it from starting.</p>{{end}}
       <div class="row">
         <select name="version" style="max-width:16rem" aria-label="Version">
           {{range $v.Versions}}<option value="{{.}}" {{if eq . $v.Version}}selected{{end}}>{{if eq . "latest"}}Latest release{{else}}{{.}}{{end}}</option>{{end}}
