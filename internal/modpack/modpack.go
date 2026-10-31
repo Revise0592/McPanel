@@ -88,7 +88,11 @@ type Pack struct {
 	Files   int
 	Size    int64
 	Skipped int // client-only files left out
-	index   Index
+	// server are the files a server gets; client the ones left out.
+	server, client []File
+	// rescued maps client-only files brought back for the server to the
+	// server files that need them.
+	rescued map[string][]string
 }
 
 // ErrNotPack means the file isn't a Modrinth modpack.
@@ -131,7 +135,7 @@ func check(idx Index) (Pack, error) {
 	if len(idx.Files) > maxFiles {
 		return Pack{}, fmt.Errorf("the pack lists %d files, more than McPanel accepts", len(idx.Files))
 	}
-	p := Pack{Name: idx.Name, Version: idx.VersionID, Minecraft: idx.Dependencies["minecraft"], index: idx}
+	p := Pack{Name: idx.Name, Version: idx.VersionID, Minecraft: idx.Dependencies["minecraft"]}
 	if p.Minecraft == "" {
 		return Pack{}, errors.New("the pack doesn't say which Minecraft version it's for")
 	}
@@ -150,19 +154,33 @@ func check(idx Index) (Pack, error) {
 	}
 	for _, f := range idx.Files {
 		if !f.ForServer() {
-			p.Skipped++
+			p.client = append(p.client, f)
 			continue
 		}
-		if _, err := localPath(f.Path); err != nil {
+		if err := safe(f); err != nil {
 			return Pack{}, err
 		}
-		if _, err := source(f); err != nil {
-			return Pack{}, err
-		}
-		p.Files++
+		p.server = append(p.server, f)
+	}
+	p.count()
+	return p, nil
+}
+
+func (p *Pack) count() {
+	p.Files, p.Size, p.Skipped = len(p.server), 0, len(p.client)
+	for _, f := range p.server {
 		p.Size += f.FileSize
 	}
-	return p, nil
+}
+
+// safe checks a file stays in the server folder and comes from an allowed
+// site.
+func safe(f File) error {
+	if _, err := localPath(f.Path); err != nil {
+		return err
+	}
+	_, err := source(f)
+	return err
 }
 
 // localPath checks a path from the pack stays inside the server folder.
@@ -195,12 +213,8 @@ func checksum(f File) install.Checksum {
 // Apply downloads the pack's server files into dir, then copies its
 // overrides over them. progress follows the bytes downloaded.
 func Apply(ctx context.Context, packPath string, p Pack, dir string, progress func(done, total int64), logf install.Logf) error {
-	var files []File
-	for _, f := range p.index.Files {
-		if f.ForServer() {
-			files = append(files, f)
-		}
-	}
+	p = addRequired(ctx, p, logf)
+	files := p.server
 	logf("Downloading %d mods and files for %s %s (%d client-only ones left out)", len(files), p.Name, p.Version, p.Skipped)
 	var done int64
 	var progressMu sync.Mutex
@@ -250,6 +264,7 @@ func Apply(ctx context.Context, packPath string, p Pack, dir string, progress fu
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	p = dropUnneeded(p, dir, logf)
 	logf("Copying the pack's settings files")
 	return overrides(packPath, dir)
 }

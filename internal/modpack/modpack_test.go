@@ -7,8 +7,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -16,6 +18,16 @@ import (
 	"github.com/Revise0592/McPanel/internal/install"
 	"github.com/Revise0592/McPanel/internal/store"
 )
+
+// noLookup stands in for Modrinth, which tests don't call: it knows no files.
+func noLookup(context.Context, []string) (map[string]fileVersion, error) {
+	return map[string]fileVersion{}, nil
+}
+
+func TestMain(m *testing.M) {
+	lookupFiles = noLookup
+	os.Exit(m.Run())
+}
 
 func sum(b string) string {
 	h := sha512.Sum512([]byte(b))
@@ -201,5 +213,66 @@ func TestForgeLoaderVersion(t *testing.T) {
 	p, err := check(i)
 	if err != nil || p.Type != store.TypeForge || p.Loader != "47.3.0" {
 		t.Fatalf("got %+v, %v", p, err)
+	}
+}
+
+func TestClientOnlyDependencyIsInstalled(t *testing.T) {
+	var mu sync.Mutex
+	var got []string
+	download = func(ctx context.Context, url, dst string, sum install.Checksum, logf install.Logf) error {
+		mu.Lock()
+		got = append(got, filepath.Base(dst))
+		mu.Unlock()
+		os.MkdirAll(filepath.Dir(dst), 0o755)
+		return os.WriteFile(dst, nil, 0o644)
+	}
+	defer func() { download = install.Download }()
+	type dep = struct {
+		ProjectID      string `json:"project_id"`
+		DependencyType string `json:"dependency_type"`
+	}
+	// Chipped needs Athena, which needs Library; the pack marks Athena and
+	// Library client-only, the way Homestead does. Sodium really is.
+	lookupFiles = func(ctx context.Context, hashes []string) (map[string]fileVersion, error) {
+		return map[string]fileVersion{
+			sum("chipped"): {Name: "Chipped 3.0.7", ProjectID: "chipped", Dependencies: []dep{{"athena", "required"}, {"sodium", "optional"}}},
+			sum("athena"):  {Name: "Athena 3.1.2", ProjectID: "athena", Dependencies: []dep{{"library", "required"}}},
+			sum("library"): {Name: "Library", ProjectID: "library"},
+			sum("sodium"):  {Name: "Sodium", ProjectID: "sodium"},
+		}, nil
+	}
+	defer func() { lookupFiles = noLookup }()
+
+	path := writePack(t, index(
+		file("mods/chipped.jar", "chipped", "required"),
+		file("mods/athena.jar", "athena", "unsupported"),
+		file("mods/library.jar", "library", "unsupported"),
+		file("mods/sodium.jar", "sodium", "unsupported"),
+	), nil)
+	p, err := Read(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var logs []string
+	logf := func(f string, a ...any) { logs = append(logs, fmt.Sprintf(f, a...)) }
+	if err := Apply(context.Background(), path, p, t.TempDir(), nil, logf); err != nil {
+		t.Fatal(err)
+	}
+	slices.Sort(got)
+	if !slices.Equal(got, []string{"athena.jar", "chipped.jar", "library.jar"}) {
+		t.Errorf("downloaded %v", got)
+	}
+	if !strings.Contains(strings.Join(logs, "\n"), "mods/athena.jar: the pack marks it as only for players' computers, but Chipped 3.0.7 needs it") {
+		t.Errorf("logs: %v", logs)
+	}
+
+	// Without Modrinth, the pack's own list is used.
+	got = nil
+	lookupFiles = func(context.Context, []string) (map[string]fileVersion, error) { return nil, errors.New("offline") }
+	if err := Apply(context.Background(), path, p, t.TempDir(), nil, logf); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Errorf("offline: downloaded %v", got)
 	}
 }
