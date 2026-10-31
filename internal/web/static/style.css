@@ -360,6 +360,11 @@ table.files td.name { word-break: break-all; }
   .subnav a { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; border-radius: 7px 7px 0 0; }
   .subnav a.active { border-bottom-color: var(--accent); box-shadow: none; }
 }
+@media (max-width: 640px) {
+  /* Wrap the sections instead of scrolling, so Alerts isn't hidden off the edge */
+  .subnav { flex-wrap: wrap; overflow-x: visible; gap: .1rem; }
+  .subnav a { padding: .4rem .6rem; }
+}
 
 /* Accent colour swatches */
 .swatches { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; }
@@ -485,4 +490,24 @@ dl.facts dd { margin: 0; }
   .quick { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -1rem; padding-inline: 1rem; }
   .quick .btn { flex: none; }
   input[type=text], input[type=password], input[type=number], input[type=search], select, textarea { font-size: 16px; }
+
+  /* Tables become one block per row: details on top, buttons wrapping underneath */
+  table.stacked, table.stacked tbody { display: block; }
+  table.stacked thead { display: none; }
+  table.stacked tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; padding: .65rem 0; border-top: 1px solid var(--border); }
+  table.stacked tr:first-child { border-top: 0; }
+  table.stacked td { display: block; padding: 0; border: 0; }
+  table.stacked td:empty { display: none; }
+  table.stacked td > .muted { display: inline; margin-left: .35rem; }
+  table.stacked td.actions { display: flex; flex-wrap: wrap; gap: .35rem; flex-basis: 100%; margin-top: .3rem; white-space: normal; }
+  table.files td.name { flex-basis: 100%; overflow-wrap: anywhere; word-break: normal; font-weight: 550; }
+
+  /* Input and button share a row while they fit; a long button drops below at full width */
+  .add-row { flex-wrap: wrap; }
+  .add-row > input { flex: 999 1 12rem; min-width: 0; }
+  .add-row > .btn { flex: 1 0 auto; }
+
+  /* Plugin and mod rows: buttons under the name so the name and version get the full width */
+  .addon-list li { flex-wrap: wrap; row-gap: .45rem; }
+  .addon-list .actions { flex-basis: 100%; justify-content: flex-start; }
 }

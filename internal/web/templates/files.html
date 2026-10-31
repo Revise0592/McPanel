@@ -12,7 +12,7 @@
       {{if and $v.Datapacks (ne $v.Path $v.Datapacks)}}<a class="btn small ghost" href="/servers/{{$v.ID}}/files?path={{$v.Datapacks}}">Datapacks</a>{{end}}
     </div>
     <div class="table-scroll">
-    <table class="files">
+    <table class="files stacked">
       <thead><tr><th>Name</th><th>Size</th><th>Changed</th><th></th></tr></thead>
       <tbody>
       {{if $v.Path}}<tr><td colspan="4"><a href="/servers/{{$v.ID}}/files{{if $v.Parent}}?path={{$v.Parent}}{{end}}">↑ Up a folder</a></td></tr>{{end}}

@@ -46,7 +46,7 @@
         <button class="btn small ghost" title="{{if $v.UpdateCheck.Checked.IsZero}}Not checked yet{{else}}Last checked {{ago $v.UpdateCheck.Checked}}{{end}}">Check for updates</button></form>
       </span>
     </div>
-    <ul class="list">
+    <ul class="list addon-list">
     {{range $v.Addons}}
       {{$up := $v.Update .}}
       <li>

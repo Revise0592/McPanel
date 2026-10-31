@@ -11,7 +11,7 @@
     {{if $v.Busy}}<p class="muted small">{{$v.Status.Task}}… this page updates when it's done.</p>{{end}}
     {{if $v.Backups}}
     <div class="table-scroll">
-    <table>
+    <table class="stacked">
       <thead><tr><th>Made</th><th>Kind</th><th>Size</th><th></th></tr></thead>
       <tbody>
       {{range $v.Backups}}
