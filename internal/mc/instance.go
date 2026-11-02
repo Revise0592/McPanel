@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -360,6 +361,41 @@ func (i *Instance) fail(format string, args ...any) {
 	i.mu.Unlock()
 }
 
+// geyserEnv returns the GEYSER_* variables for a server running Geyser.
+// Geyser reads its settings from them, and they win over its config file.
+//
+// Bedrock players join over NetherNet (WebRTC): they reach signaling on
+// the Bedrock port over TCP, which then tells them where to send the game
+// traffic over UDP. Left alone, Geyser names this machine's own addresses
+// and the public address it finds through STUN, which are wrong behind a
+// tunnel or relay (such as Pangolin, playit.gg or a VPS). So when the
+// server has a join address, Geyser names that instead.
+func geyserEnv(def store.Server) []string {
+	if def.BedrockPort <= 0 {
+		return nil
+	}
+	env := []string{fmt.Sprintf("GEYSER_BEDROCK_PORT=%d", def.BedrockPort)}
+	if h := joinHost(def.JoinAddress); h != "" {
+		env = append(env, "GEYSER_BEDROCK_SIGNALING_ADVERTISE_ADDRESSES="+h)
+	}
+	return env
+}
+
+// joinHost is the host part of a join address such as "play.example.com"
+// or "play.example.com:25565". The port is dropped: it's the Java port,
+// and Geyser adds the Bedrock one.
+func joinHost(addr string) string {
+	addr = strings.TrimSpace(addr)
+	if h, _, err := net.SplitHostPort(addr); err == nil {
+		addr = h
+	}
+	addr = strings.Trim(addr, "[]")
+	if strings.Contains(addr, ":") {
+		return "[" + addr + "]" // IPv6
+	}
+	return addr
+}
+
 func (i *Instance) run(def store.Server) {
 	dir := i.Dir()
 	var cmd *exec.Cmd
@@ -370,10 +406,8 @@ func (i *Instance) run(def store.Server) {
 			return
 		}
 		cmd = exec.Command(java, javaArgs(def)...)
-		if def.BedrockPort > 0 {
-			// Geyser reads its settings from GEYSER_* variables, so the
-			// port McPanel picked wins over its config file.
-			cmd.Env = append(os.Environ(), fmt.Sprintf("GEYSER_BEDROCK_PORT=%d", def.BedrockPort))
+		if env := geyserEnv(def); len(env) > 0 {
+			cmd.Env = append(os.Environ(), env...)
 		}
 	} else {
 		cmd = exec.Command(filepath.Join(dir, def.Executable))
