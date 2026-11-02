@@ -111,7 +111,7 @@ func (a *App) publicView(r *http.Request, sv store.Server, inst *mc.Instance) pu
 		if sv.Type == store.TypeBedrock {
 			key = "server-name"
 		}
-		p.MOTD, _ = f.Get(key)
+		p.MOTD = props.Unescape(f.GetOr(key, ""))
 		p.MaxPlayers, _ = strconv.Atoi(f.GetOr("max-players", "20"))
 	}
 	p.MOTD = formatCodes.ReplaceAllString(p.MOTD, "")

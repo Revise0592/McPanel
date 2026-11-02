@@ -545,3 +545,19 @@ a.pack-result:hover { border-color: var(--accent); }
 .pack-head img, .pack-head .noicon { width: 56px; height: 56px; border-radius: 10px; flex: none; background: var(--surface-2); object-fit: cover; }
 .pack-head h2 { margin: 0 0 .2rem; }
 .pack-head p { margin: 0 0 .3rem; }
+
+/* MOTD editor */
+.field.wide { grid-column: 1 / -1; }
+.motd-tools { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; margin-bottom: .45rem; }
+.motd-swatch { width: 1.45rem; height: 1.45rem; border-radius: 5px; border: 1px solid var(--border); cursor: pointer; padding: 0; }
+.motd-swatch:hover, .motd-style:hover { outline: 2px solid var(--accent); outline-offset: 1px; }
+.motd-sep { width: 1px; height: 1.2rem; background: var(--border); margin-inline: .2rem; }
+.motd-style { min-width: 1.9rem; height: 1.45rem; padding: 0 .4rem; border-radius: 5px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-size: .8rem; cursor: pointer; }
+textarea.motd-input { min-height: 0; resize: vertical; white-space: pre; overflow-x: auto; }
+.motd-preview { display: flex; gap: .6rem; align-items: flex-start; margin-top: .5rem; padding: .4rem; background: #1b1b1b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect width='4' height='4' fill='%23222'/%3E%3Crect x='4' y='4' width='4' height='4' fill='%23222'/%3E%3C/svg%3E"); border-radius: 4px; overflow: hidden; }
+.motd-preview img, .motd-noicon { width: 64px; height: 64px; flex: none; image-rendering: pixelated; }
+.motd-noicon { background: #444; }
+.motd-text { flex: 1; min-width: 0; font: 16px/1.2 "Minecraft", "Monocraft", ui-monospace, Menlo, Consolas, monospace; }
+.motd-name { display: flex; justify-content: space-between; gap: 1rem; color: #fff; text-shadow: 2px 2px 0 #3f3f3f; margin-bottom: .15rem; }
+.motd-count { color: #aaa; text-shadow: 2px 2px 0 #2a2a2a; }
+.motd-line { white-space: pre; overflow: hidden; }

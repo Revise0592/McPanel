@@ -46,3 +46,32 @@ func TestMissingFileAndNewlines(t *testing.T) {
 		t.Errorf("injected key appeared: %q", v)
 	}
 }
+
+func TestEscapeRoundTrip(t *testing.T) {
+	for _, s := range []string{
+		"plain",
+		"§aWelcome §lhome\n§7second line",
+		"  centred title",
+		`back\slash`,
+		"emoji 🎮 and café",
+	} {
+		enc := Escape(s)
+		for _, r := range enc {
+			if r > 0x7e {
+				t.Errorf("Escape(%q) = %q, not ASCII", s, enc)
+			}
+		}
+		if got := Unescape(enc); got != s {
+			t.Errorf("round trip %q: escaped %q, back %q", s, enc, got)
+		}
+	}
+	if got := Unescape(`§aHi\nthere`); got != "§aHi\nthere" {
+		t.Errorf("Unescape vanilla value: %q", got)
+	}
+	if got := Unescape(`ends with \`); got != `ends with \` {
+		t.Errorf("trailing backslash: %q", got)
+	}
+	if got := Unescape(`\u00Zz`); got != "u00Zz" {
+		t.Errorf("bad escape: %q", got)
+	}
+}

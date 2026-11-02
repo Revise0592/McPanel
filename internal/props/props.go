@@ -4,8 +4,11 @@ package props
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"unicode/utf16"
 )
 
 // File is a parsed properties file.
@@ -102,4 +105,81 @@ func (f *File) Save() error {
 		return err
 	}
 	return os.Rename(tmp, f.path)
+}
+
+// Unescape decodes a value as Java reads it: \uXXXX, \n, \t and friends.
+// Minecraft writes § as §, so text read raw shows the escapes.
+func Unescape(s string) string {
+	if !strings.Contains(s, `\`) {
+		return s
+	}
+	var b strings.Builder
+	var units []uint16 // pending \u escapes, so surrogate pairs join up
+	flush := func() {
+		if len(units) > 0 {
+			b.WriteString(string(utf16.Decode(units)))
+			units = units[:0]
+		}
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' || i+1 == len(s) {
+			flush()
+			b.WriteByte(s[i])
+			continue
+		}
+		i++
+		if s[i] == 'u' && i+4 < len(s) {
+			if n, err := strconv.ParseUint(s[i+1:i+5], 16, 16); err == nil {
+				units = append(units, uint16(n))
+				i += 4
+				continue
+			}
+		}
+		flush()
+		switch s[i] {
+		case 'n':
+			b.WriteByte('\n')
+		case 't':
+			b.WriteByte('\t')
+		case 'r':
+			b.WriteByte('\r')
+		case 'f':
+			b.WriteByte('\f')
+		default:
+			b.WriteByte(s[i])
+		}
+	}
+	flush()
+	return b.String()
+}
+
+// Escape encodes a value so Java reads it back exactly: newlines as \n,
+// leading spaces kept, and anything outside ASCII as \uXXXX, which is how
+// Minecraft writes the file itself.
+func Escape(s string) string {
+	var b strings.Builder
+	lead := true
+	for _, r := range s {
+		switch {
+		case r == ' ' && lead:
+			b.WriteString(`\ `)
+			continue
+		case r == '\\':
+			b.WriteString(`\\`)
+		case r == '\n':
+			b.WriteString(`\n`)
+		case r == '\r':
+			b.WriteString(`\r`)
+		case r == '\t':
+			b.WriteString(`\t`)
+		case r < 0x20 || r > 0x7e:
+			for _, u := range utf16.Encode([]rune{r}) {
+				fmt.Fprintf(&b, `\u%04X`, u)
+			}
+		default:
+			b.WriteRune(r)
+		}
+		lead = false
+	}
+	return b.String()
 }

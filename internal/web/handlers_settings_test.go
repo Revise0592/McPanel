@@ -22,3 +22,23 @@ func TestValidJoinAddress(t *testing.T) {
 		}
 	}
 }
+
+func TestMotdEditorRoundTrip(t *testing.T) {
+	if got := motdForEditing(`§aWelcome §lhome\n§7Line two`); got != "&aWelcome &lhome\n&7Line two" {
+		t.Errorf("for editing: %q", got)
+	}
+	cases := map[string]string{
+		"&aHi &Lthere":            "§aHi §Lthere",
+		"  centred\r\nsecond  ":   "  centred\nsecond",
+		"one\ntwo\nthree":         "one\ntwo",
+		"Tom & Jerry":             "Tom & Jerry",
+		"   \n  ":                 "",
+		"&x is not a code, &6 is": "&x is not a code, §6 is",
+		"first\n\n":               "first",
+	}
+	for in, want := range cases {
+		if got := motdFromEditor(in); got != want {
+			t.Errorf("motdFromEditor(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

@@ -198,7 +198,7 @@ func (m *Manager) wakeInfo(id string) wake.Info {
 			key = "server-name"
 		}
 		if v, _ := f.Get(key); v != "" {
-			in.MOTD = v
+			in.MOTD = props.Unescape(v)
 		}
 		if n, err := strconv.Atoi(f.GetOr("max-players", "20")); err == nil {
 			in.MaxPlayers = n

@@ -114,6 +114,7 @@ func TestRenderNewStates(t *testing.T) {
 		{"proxy console", "console", consoleData{activityData: activityData{serverView: proxy}, Performance: usageData{serverView: proxy, Range: chartRanges[0], Ranges: chartRanges}}, "glist"},
 		{"sleep setting", "settings", settingsData{serverView: asleep, Section: "general", Memory: []int{2048}, SleepChoices: mc.SleepChoices, StatusURL: "http://x/s/abc"}, "After 15 minutes"},
 		{"neoforge version", "settings", settingsData{serverView: neo, Section: "version", Versions: []string{"1.21.4"}}, "with the newest loader"},
+		{"motd editor", "settings", settingsData{serverView: asleep, Section: "game", Fields: []field{{Key: "motd", Label: "Server description", Kind: "motd", Value: "&aHi <there>"}}}, `data-hex="#55FF55"`},
 		{"proxy settings", "settings", settingsData{serverView: proxy, Section: "game", Proxy: velocity.Settings{Port: 25577, MOTD: "Hi", MaxPlayers: 100}}, "Save proxy settings"},
 		{"proxy network", "settings", settingsData{serverView: proxy, Section: "network", Backends: []backendChoice{{ID: "s", Name: "Survival", Type: store.TypePaper, Port: 25565, Linked: true, Start: true, Ready: true}, {ID: "c", Name: "Creative", Type: store.TypeFolia, Port: 25566}}}, "Start it once first"},
 		{"proxy advanced", "settings", settingsData{serverView: proxy, Section: "advanced", RawFile: "velocity.toml", Raw: "bind = \"0.0.0.0:25577\""}, "velocity.toml"},

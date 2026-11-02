@@ -107,12 +107,13 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 			}
 			return strings.ToUpper(s[:1]) + s[1:]
 		},
-		"pathEsc":    url.PathEscape,
-		"editable":   files.Editable,
-		"headURL":    headURL,
-		"hasIcon":    func() bool { return hasIcon },
-		"logo":       a.logoURL,
-		"accentText": accentText,
+		"pathEsc":     url.PathEscape,
+		"editable":    files.Editable,
+		"headURL":     headURL,
+		"hasIcon":     func() bool { return hasIcon },
+		"motdColours": func() []motdColour { return motdColours },
+		"logo":        a.logoURL,
+		"accentText":  accentText,
 		"gb": func(mb int) string {
 			if mb%1024 == 0 {
 				return fmt.Sprintf("%d GB", mb/1024)

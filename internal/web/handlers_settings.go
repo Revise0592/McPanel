@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,7 +30,7 @@ type field struct {
 	Key     string
 	Label   string
 	Help    string
-	Kind    string // text, number, bool, select
+	Kind    string // text, number, bool, select, motd
 	Options []string
 	Default string
 	Value   string
@@ -38,7 +39,7 @@ type field struct {
 func (f field) Checked() bool { return f.Value == "true" }
 
 var javaFields = []field{
-	{Key: "motd", Label: "Server description", Help: "Shown under the server name in the multiplayer list.", Kind: "text", Default: "A Minecraft Server"},
+	{Key: "motd", Label: "Server description", Help: "Shown under the server name in the multiplayer list.", Kind: "motd", Default: "A Minecraft Server"},
 	{Key: "gamemode", Label: "Game mode", Kind: "select", Options: []string{"survival", "creative", "adventure", "spectator"}, Default: "survival"},
 	{Key: "difficulty", Label: "Difficulty", Kind: "select", Options: []string{"peaceful", "easy", "normal", "hard"}, Default: "easy"},
 	{Key: "max-players", Label: "Max players", Kind: "number", Default: "20"},
@@ -67,6 +68,45 @@ var bedrockFields = []field{
 	{Key: "level-seed", Label: "World seed", Help: "Only used when a new world is created.", Kind: "text"},
 	{Key: "server-port", Label: "Port (IPv4)", Kind: "number", Default: "19132"},
 	{Key: "server-portv6", Label: "Port (IPv6)", Kind: "number", Default: "19133"},
+}
+
+// motdColour is one of Minecraft's sixteen text colours, for the MOTD
+// editor's buttons and preview.
+type motdColour struct{ Code, Name, Hex string }
+
+var motdColours = []motdColour{
+	{"0", "Black", "#000000"}, {"1", "Dark blue", "#0000AA"}, {"2", "Dark green", "#00AA00"}, {"3", "Dark aqua", "#00AAAA"},
+	{"4", "Dark red", "#AA0000"}, {"5", "Dark purple", "#AA00AA"}, {"6", "Gold", "#FFAA00"}, {"7", "Grey", "#AAAAAA"},
+	{"8", "Dark grey", "#555555"}, {"9", "Blue", "#5555FF"}, {"a", "Green", "#55FF55"}, {"b", "Aqua", "#55FFFF"},
+	{"c", "Red", "#FF5555"}, {"d", "Light purple", "#FF55FF"}, {"e", "Yellow", "#FFFF55"}, {"f", "White", "#FFFFFF"},
+}
+
+// motdCode matches a formatting code typed with & in the MOTD editor.
+var motdCode = regexp.MustCompile(`&([0-9a-fk-orA-FK-OR])`)
+
+// motdForEditing turns a stored MOTD into what the editor shows: escapes
+// decoded, and § written as &, which can be typed on any keyboard.
+func motdForEditing(stored string) string {
+	return strings.ReplaceAll(props.Unescape(stored), "§", "&")
+}
+
+// motdFromEditor turns the editor's text back into a MOTD: & codes become
+// §, and only the two lines the multiplayer list shows are kept. Leading
+// spaces stay, since they're how people centre a line.
+func motdFromEditor(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	lines := strings.Split(s, "\n")
+	if len(lines) > 2 {
+		lines = lines[:2]
+	}
+	for i, l := range lines {
+		lines[i] = strings.TrimRight(l, " \t\r")
+	}
+	s = strings.TrimRight(strings.Join(lines, "\n"), "\n")
+	if strings.TrimSpace(s) == "" {
+		return ""
+	}
+	return motdCode.ReplaceAllString(s, "§$1")
 }
 
 func fieldsFor(typ string) []field {
@@ -169,6 +209,9 @@ func (a *App) settingsPage(w http.ResponseWriter, r *http.Request) {
 		d.Fields = slices.Clone(fieldsFor(sv.Type))
 		for i := range d.Fields {
 			d.Fields[i].Value = f.GetOr(d.Fields[i].Key, d.Fields[i].Default)
+			if d.Fields[i].Kind == "motd" {
+				d.Fields[i].Value = motdForEditing(d.Fields[i].Value)
+			}
 		}
 		d.Raw = f.Raw()
 	case "version":
@@ -207,6 +250,11 @@ func (a *App) saveGameSettings(w http.ResponseWriter, r *http.Request) {
 	for _, fd := range fieldsFor(sv.Type) {
 		val := strings.TrimSpace(r.FormValue(fd.Key))
 		switch fd.Kind {
+		case "motd":
+			val = motdFromEditor(r.FormValue(fd.Key))
+			if val == "" {
+				val = fd.Default
+			}
 		case "bool":
 			val = strconv.FormatBool(r.FormValue(fd.Key) == "on")
 		case "number":
@@ -236,6 +284,9 @@ func (a *App) saveGameSettings(w http.ResponseWriter, r *http.Request) {
 		// Don't write keys the user never touched and that match defaults.
 		if _, exists := f.Get(fd.Key); !exists && val == fd.Default {
 			continue
+		}
+		if fd.Kind == "motd" {
+			val = props.Escape(val)
 		}
 		f.Set(fd.Key, val)
 	}

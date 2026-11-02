@@ -337,4 +337,113 @@
       toast("Couldn't copy. Select the text and copy it by hand.");
     });
   });
+  // MOTD editor: draws the description as the multiplayer list would,
+  // reading & (or §) codes as the player types.
+  var MOTD_GREY = "#AAAAAA";
+  var MOTD_SCRAMBLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789#$%&?";
+  var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function motdShadow(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    var r = (n >> 16 & 255) >> 2, g = (n >> 8 & 255) >> 2, b = (n & 255) >> 2;
+    return "2px 2px 0 rgb(" + r + "," + g + "," + b + ")";
+  }
+  function scramble(len) {
+    var out = "";
+    for (var i = 0; i < len; i++) out += MOTD_SCRAMBLE.charAt(Math.floor(Math.random() * MOTD_SCRAMBLE.length));
+    return out;
+  }
+  function renderMotd(box) {
+    var input = box.querySelector(".motd-input");
+    var out = box.querySelector(".motd-lines");
+    var warn = box.querySelector(".motd-warn");
+    var colours = {};
+    box.querySelectorAll(".motd-swatch").forEach(function (b) { colours[b.getAttribute("data-code")] = b.getAttribute("data-hex"); });
+    var lines = input.value.replace(/\r\n?/g, "\n").split("\n");
+    out.textContent = "";
+    var st = { colour: MOTD_GREY, l: false, o: false, n: false, m: false, k: false };
+    lines.slice(0, 2).forEach(function (line) {
+      var div = document.createElement("div");
+      div.className = "motd-line";
+      var buf = "";
+      function emit() {
+        if (!buf) return;
+        var span = document.createElement("span");
+        span.style.color = st.colour;
+        span.style.textShadow = motdShadow(st.colour);
+        if (st.l) span.style.fontWeight = "700";
+        if (st.o) span.style.fontStyle = "italic";
+        var deco = (st.n ? "underline " : "") + (st.m ? "line-through" : "");
+        if (deco) span.style.textDecoration = deco;
+        if (st.k) {
+          span.className = "motd-k";
+          span.setAttribute("data-len", buf.length);
+          span.textContent = scramble(buf.length);
+        } else {
+          span.textContent = buf;
+        }
+        div.appendChild(span);
+        buf = "";
+      }
+      for (var i = 0; i < line.length; i++) {
+        var ch = line.charAt(i), code = line.charAt(i + 1).toLowerCase();
+        if ((ch === "&" || ch === "§") && /[0-9a-fk-or]/.test(code)) {
+          emit();
+          if (colours[code]) st = { colour: colours[code], l: false, o: false, n: false, m: false, k: false };
+          else if (code === "r") st = { colour: MOTD_GREY, l: false, o: false, n: false, m: false, k: false };
+          else st[code] = true;
+          i++;
+          continue;
+        }
+        buf += ch;
+      }
+      emit();
+      if (!div.firstChild) div.appendChild(document.createTextNode(" "));
+      out.appendChild(div);
+    });
+    if (warn) {
+      var extra = lines.length > 2 && lines.slice(2).join("").trim() !== "";
+      warn.hidden = !extra;
+      warn.textContent = extra ? "Only two lines fit in the multiplayer list. Anything after the second line won't be saved." : "";
+    }
+    var max = document.getElementById("f-max-players");
+    var count = box.querySelector(".motd-count");
+    if (count) count.textContent = "0/" + (max && max.value !== "" ? max.value : "20");
+  }
+  var scrambling = 0;
+  function setupMotd() {
+    document.querySelectorAll(".motd-editor").forEach(function (box) {
+      if (box._motd) return;
+      box._motd = true;
+      renderMotd(box);
+      // Scrambled text keeps changing, as it does in the game.
+      if (!still && !scrambling) {
+        scrambling = setInterval(function () {
+          document.querySelectorAll(".motd-k").forEach(function (s) { s.textContent = scramble(+s.getAttribute("data-len")); });
+        }, 80);
+      }
+    });
+  }
+  setupMotd();
+  document.body.addEventListener("htmx:afterSettle", setupMotd);
+  document.addEventListener("input", function (e) {
+    var box = e.target.closest && e.target.closest(".motd-editor");
+    if (box) renderMotd(box);
+    else if (e.target.id === "f-max-players") document.querySelectorAll(".motd-editor").forEach(renderMotd);
+  });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest(".motd-tools [data-code]");
+    if (!b) return;
+    var box = b.closest(".motd-editor");
+    var input = box.querySelector(".motd-input");
+    var code = "&" + b.getAttribute("data-code");
+    var start = input.selectionStart, end = input.selectionEnd, v = input.value;
+    // With text selected, the code goes before it and a reset after, so
+    // only the selection changes.
+    var after = end > start && code !== "&r" ? "&r" : "";
+    input.value = v.slice(0, start) + code + v.slice(start, end) + after + v.slice(end);
+    input.focus();
+    var pos = end + code.length + after.length;
+    input.setSelectionRange(pos, pos);
+    renderMotd(box);
+  });
 })();

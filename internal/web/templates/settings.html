@@ -166,7 +166,31 @@
       <h2>Game</h2>
       <p class="desc">Saved to server.properties.</p>
       <div class="fields">
-      {{range $v.Fields}}{{if ne .Kind "bool"}}
+      {{range $v.Fields}}{{if eq .Kind "motd"}}
+        <div class="field wide motd-editor">
+          <label for="f-{{.Key}}">{{.Label}}</label>
+          <div class="motd-tools" role="toolbar" aria-label="Colours and styles">
+            {{range motdColours}}<button type="button" class="motd-swatch" data-code="{{.Code}}" data-hex="{{.Hex}}" style="background:{{.Hex}}" title="{{.Name}} (&amp;{{.Code}})" aria-label="{{.Name}}"></button>{{end}}
+            <span class="motd-sep" aria-hidden="true"></span>
+            <button type="button" class="motd-style" data-code="l" title="Bold (&amp;l)"><b>B</b></button>
+            <button type="button" class="motd-style" data-code="o" title="Italic (&amp;o)"><i>I</i></button>
+            <button type="button" class="motd-style" data-code="n" title="Underline (&amp;n)"><u>U</u></button>
+            <button type="button" class="motd-style" data-code="m" title="Strikethrough (&amp;m)"><s>S</s></button>
+            <button type="button" class="motd-style" data-code="k" title="Scrambled (&amp;k)">?</button>
+            <button type="button" class="motd-style" data-code="r" title="Reset to plain (&amp;r)">Reset</button>
+          </div>
+          <textarea id="f-{{.Key}}" name="{{.Key}}" class="mono motd-input" rows="2" spellcheck="false" aria-describedby="motd-help">{{.Value}}</textarea>
+          <div class="motd-preview" aria-label="Preview in the multiplayer list">
+            {{if $v.IconTime}}<img src="/servers/{{$v.ID}}/icon?v={{$v.IconTime}}" alt="" width="64" height="64">{{else}}<span class="motd-noicon" aria-hidden="true"></span>{{end}}
+            <div class="motd-text">
+              <div class="motd-name"><span>{{$v.Name}}</span><span class="motd-count">0/20</span></div>
+              <div class="motd-lines" aria-live="polite"></div>
+            </div>
+          </div>
+          <div class="help" id="motd-help">Shown under the server name in the multiplayer list: two lines at most. Pick a colour or style to add its code at the cursor, or type <span class="mono">&amp;</span> and a code yourself, such as <span class="mono">&amp;a</span> for green. A colour clears any styles before it.</div>
+          <div class="help warn motd-warn" hidden></div>
+        </div>
+      {{else if ne .Kind "bool"}}
         <div class="field">
           <label for="f-{{.Key}}">{{.Label}}</label>
           {{if eq .Kind "select"}}
