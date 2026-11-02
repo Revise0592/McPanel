@@ -5,7 +5,10 @@
 // Java Edition uses TCP: the panel speaks just enough of the handshake,
 // status and login protocol to show a description and turn the player away
 // with a message. Bedrock Edition (and Geyser) use RakNet over UDP: the
-// panel answers pings and treats a connection request as a join.
+// panel answers pings and treats a connection request as a join. Newer
+// Geyser also takes NetherNet (WebRTC) joins, which start with HTTP
+// signaling over TCP on the Bedrock port: the panel answers its status
+// check and treats a join offer as a join.
 package wake
 
 import (
@@ -17,6 +20,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +46,7 @@ type Waker struct {
 	closed  bool
 	tcp     []net.Listener
 	udp     []net.PacketConn
+	http    []*http.Server
 	wg      sync.WaitGroup
 	guid    uint64
 	started time.Time
@@ -114,18 +120,49 @@ func (w *Waker) ListenBedrock(addr string) error {
 	return nil
 }
 
+// ListenSignaling holds a NetherNet signaling TCP address, such as
+// ":19132". Geyser serves this on the same port number as RakNet's UDP.
+func (w *Waker) ListenSignaling(addr string) error {
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+	srv := &http.Server{
+		Handler:           http.HandlerFunc(w.serveSignaling),
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       30 * time.Second,
+	}
+	w.mu.Lock()
+	if w.closed {
+		w.mu.Unlock()
+		l.Close()
+		return errors.New("closed")
+	}
+	w.http = append(w.http, srv)
+	w.wg.Add(1)
+	w.mu.Unlock()
+	go func() {
+		defer w.wg.Done()
+		srv.Serve(l)
+	}()
+	return nil
+}
+
 // Close releases every port. When it returns, the ports can be reused.
 func (w *Waker) Close() {
 	w.mu.Lock()
 	w.closed = true
-	tcp, udp := w.tcp, w.udp
-	w.tcp, w.udp = nil, nil
+	tcp, udp, hs := w.tcp, w.udp, w.http
+	w.tcp, w.udp, w.http = nil, nil, nil
 	w.mu.Unlock()
 	for _, l := range tcp {
 		l.Close()
 	}
 	for _, pc := range udp {
 		pc.Close()
+	}
+	for _, srv := range hs {
+		srv.Close()
 	}
 	w.wg.Wait()
 }
@@ -344,4 +381,77 @@ func (w *Waker) bedrockPacket(p []byte, port int) (reply []byte, join bool) {
 		}
 	}
 	return nil, false
+}
+
+// netherNetStatus is the server list answer for NetherNet, as Geyser's
+// built-in signaling writes it.
+type netherNetStatus struct {
+	DataVersion    int    `json:"dataVersion"`
+	Name           string `json:"name"`
+	Protocol       int    `json:"protocol"`
+	Version        string `json:"version"`
+	Level          string `json:"level"`
+	Players        int    `json:"players"`
+	MaxPlayers     int    `json:"maxPlayers"`
+	GameType       int    `json:"gameType"`
+	Editor         bool   `json:"editor"`
+	Hardcore       bool   `json:"hardcore"`
+	OnlineAuth     bool   `json:"onlineAuth"`
+	SelfSignedAuth bool   `json:"selfSignedAuth"`
+	Nonce          string `json:"nonce"`
+	TransportLayer int    `json:"transportLayer"`
+	Connection     int    `json:"connection"`
+}
+
+// serveSignaling answers NetherNet signaling. GET /v1/join is the status
+// check behind the server list; POST /v1/join/<network id> carries a
+// player's join offer, which wakes the server. The player is turned away
+// as if the server were full, and can join once it's up.
+func (w *Waker) serveSignaling(rw http.ResponseWriter, r *http.Request) {
+	switch {
+	case r.URL.Path == "/v1/join":
+		if r.Method != http.MethodGet {
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		in := w.info()
+		// The client's own protocol and version, so the list doesn't call
+		// the server outdated; the real server checks once awake.
+		q := r.URL.Query()
+		proto, _ := strconv.Atoi(q.Get("protocol"))
+		ver := q.Get("version")
+		if ver == "" {
+			ver = in.Version
+		}
+		body, _ := json.Marshal(netherNetStatus{
+			DataVersion: 7,
+			Name:        strings.SplitN(in.MOTD, "\n", 2)[0],
+			Protocol:    proto,
+			Version:     ver,
+			Level:       "Asleep - join to wake it up",
+			MaxPlayers:  max(in.MaxPlayers, 1),
+			OnlineAuth:  true,
+			Nonce:       fmt.Sprintf("%016x", w.guid),
+			// NetherNet, over LAN-style WebRTC signaling.
+			TransportLayer: 2,
+			Connection:     4,
+		})
+		rw.Header().Set("Content-Type", "application/json")
+		rw.Write(body)
+	case strings.HasPrefix(r.URL.Path, "/v1/join/"):
+		id := strings.TrimPrefix(r.URL.Path, "/v1/join/")
+		if id == "" || strings.Contains(id, "/") {
+			rw.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if r.Method != http.MethodPost {
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		io.Copy(io.Discard, http.MaxBytesReader(rw, r.Body, 64<<10))
+		w.join("")
+		rw.WriteHeader(http.StatusServiceUnavailable)
+	default:
+		rw.WriteHeader(http.StatusNotFound)
+	}
 }
