@@ -169,8 +169,13 @@ func (m *Manager) holdPorts(def store.Server, dir string, w *wake.Waker) error {
 		return err
 	}
 	if def.BedrockPort > 0 && geyser.Supported(def.Type) && geyser.Find(dir).On() {
-		if err := w.ListenBedrock(net.JoinHostPort(host, strconv.Itoa(def.BedrockPort))); err != nil {
+		bedrock := net.JoinHostPort(host, strconv.Itoa(def.BedrockPort))
+		if err := w.ListenBedrock(bedrock); err != nil {
 			return fmt.Errorf("Bedrock port: %w", err)
+		}
+		// Newer Geyser takes NetherNet joins, which start over TCP.
+		if err := w.ListenSignaling(bedrock); err != nil {
+			return fmt.Errorf("Bedrock port (TCP): %w", err)
 		}
 	}
 	return nil

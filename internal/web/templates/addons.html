@@ -21,7 +21,7 @@
         <input type="number" id="bedrock-port" name="port" value="{{$v.BedrockPort}}" min="1" max="65535" style="max-width:7rem">
         <button class="btn small">Save port</button>
       </form>
-      <p class="muted small" style="margin-top:.75rem">For players outside your network, forward port {{$v.BedrockPort}} for both UDP and TCP on your router. With the whitelist on, add Bedrock players in the console with <code>fwhitelist add &lt;gamertag&gt;</code>. Their names start with a dot, like <code>.Steve</code>.</p>
+      <p class="muted small" style="margin-top:.75rem">For players outside your network, forward port {{$v.BedrockPort}} for both UDP and TCP on your router. Behind a tunnel or relay (such as Pangolin or playit.gg), set the join address in Settings to its public address and restart, so Bedrock players are sent there. With the whitelist on, add Bedrock players in the console with <code>fwhitelist add &lt;gamertag&gt;</code>. Their names start with a dot, like <code>.Steve</code>.</p>
       <div class="row" style="margin-top:.75rem">
         <form class="inline" method="post" action="/servers/{{$v.ID}}/bedrock"><input type="hidden" name="action" value="install">
           <button class="btn small" title="Bedrock Edition updates often; Geyser needs updating to keep up">{{if .Floodgate.File}}Update to the newest{{else}}Reinstall{{end}}</button></form>

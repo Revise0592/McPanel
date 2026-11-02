@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"net"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -159,4 +160,61 @@ func TestBedrock(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("connection request didn't wake the server")
 	}
+}
+
+func TestNetherNetSignaling(t *testing.T) {
+	joined := make(chan string, 1)
+	w := New(func() Info { return Info{MOTD: "Island\nsecond", MaxPlayers: 5, Version: "1.21.50"} }, func(n string) { joined <- n })
+	probe, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := probe.Addr().String()
+	probe.Close()
+	if err := w.ListenSignaling(addr); err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+	base := "http://" + addr
+
+	resp, err := http.Get(base + "/v1/join?version=1.26.50&protocol=2187&platform=1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var st netherNetStatus
+	json.NewDecoder(resp.Body).Decode(&st)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || st.Name != "Island" || st.Protocol != 2187 || st.Version != "1.26.50" || st.MaxPlayers != 5 || st.TransportLayer != 2 {
+		t.Fatalf("bad status %d %+v", resp.StatusCode, st)
+	}
+	select {
+	case <-joined:
+		t.Fatal("a status check woke the server")
+	default:
+	}
+
+	if resp, err := http.Get(base + "/other"); err != nil || resp.StatusCode != 404 {
+		t.Fatalf("other path: %v %v", resp, err)
+	}
+
+	resp, err = http.Post(base+"/v1/join/12345?version=1.26.50&protocol=2187&platform=1", "application/sdp", strings.NewReader("v=0\r\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("join answered %d", resp.StatusCode)
+	}
+	select {
+	case <-joined:
+	case <-time.After(2 * time.Second):
+		t.Fatal("join offer didn't wake the server")
+	}
+
+	w.Close()
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		t.Fatalf("port still held after Close: %v", err)
+	}
+	l.Close()
 }

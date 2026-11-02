@@ -75,7 +75,10 @@ Everything is stored in `./data`.
 
 - **Ports:** 8080 for the panel, 25565–25575/tcp for Java servers,
   19132–19141/udp for Bedrock. Bedrock players on a Paper server (Geyser)
-  also need TCP on their port, so 19132–19141/tcp is open too.
+  also need TCP on their port, so 19132–19141/tcp is open too. Geyser uses
+  TCP to tell players where to send game traffic. If you're behind a tunnel or
+  relay (Pangolin, playit.gg, a VPS), set the server's join address to that
+  public address so Geyser sends players there.
 - **Stopping:** give servers time to save. `docker compose down` does this; with
   `docker stop`, add `-t 120`.
 - **File ownership:** the container runs as UID 1000. Use `user:` in
