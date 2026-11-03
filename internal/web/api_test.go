@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -201,5 +203,60 @@ func TestPasswordChangeUnpairsDevices(t *testing.T) {
 	a.changePassword(httptest.NewRecorder(), r)
 	if w := call(h, "GET", "/api/v1/me", token, ""); w.Code != http.StatusUnauthorized {
 		t.Errorf("token still works after a password change: %d", w.Code)
+	}
+}
+
+func TestAPIPlayers(t *testing.T) {
+	a, h := newTestApp(t)
+	token := pair(t, a, h)
+	sv, err := a.Store.AddServer(store.Server{Name: "Survival", Type: store.TypePaper, Version: "1.21.4"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := "/api/v1/servers/" + sv.ID + "/players"
+	// Offline mode, so adding a player doesn't ask Mojang for their UUID.
+	inst, _ := a.Mgr.Get(sv.ID)
+	if err := os.MkdirAll(inst.Dir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(inst.Dir(), "server.properties"), []byte("online-mode=false\n"), 0o644)
+
+	w := call(h, "GET", path, token, "")
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"whitelist":[]`) || !strings.Contains(w.Body.String(), `"online":[]`) {
+		t.Fatalf("players: %d %s", w.Code, w.Body)
+	}
+	// Stopped servers have their files edited directly.
+	w = call(h, "POST", path, token, `{"action":"op","name":"Steve"}`)
+	var p apiPlayers
+	if err := json.Unmarshal(w.Body.Bytes(), &p); err != nil || w.Code != 200 || len(p.Ops) != 1 || p.Ops[0] != "Steve" {
+		t.Errorf("op: %d %s", w.Code, w.Body)
+	}
+	if w := call(h, "POST", path, token, `{"action":"op","name":"not a name!"}`); w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "valid player name.") {
+		t.Errorf("bad name: %d %s", w.Code, w.Body)
+	}
+	if w := call(h, "POST", path, token, `{"action":"kick","name":"Steve"}`); w.Code != http.StatusConflict {
+		t.Errorf("kick on a stopped server: %d %s", w.Code, w.Body)
+	}
+	if w := call(h, "POST", path, token, `{"action":"explode","name":"Steve"}`); w.Code != http.StatusBadRequest {
+		t.Errorf("unknown action: %d", w.Code)
+	}
+
+	proxy, _ := a.Store.AddServer(store.Server{Name: "Proxy", Type: store.TypeVelocity, Version: "3.4.0"})
+	if w := call(h, "GET", "/api/v1/servers/"+proxy.ID+"/players", token, ""); w.Code != http.StatusConflict {
+		t.Errorf("proxy players: %d", w.Code)
+	}
+}
+
+func TestAPIPanelTheme(t *testing.T) {
+	a, h := newTestApp(t)
+	token := pair(t, a, h)
+	a.Store.UpdateSettings(func(s *store.Settings) { s.Accent, s.Theme = "#ca8a04", "dark" })
+	w := call(h, "GET", "/api/v1/me", token, "")
+	b := w.Body.String()
+	if !strings.Contains(b, `"accent":"#ca8a04"`) || !strings.Contains(b, `"accentText":"#16191d"`) || !strings.Contains(b, `"theme":"dark"`) || strings.Contains(b, `"logo"`) {
+		t.Errorf("me: %s", b)
+	}
+	if w := call(h, "GET", "/api/v1/logo", "", ""); w.Code != http.StatusUnauthorized {
+		t.Errorf("logo without a token: %d", w.Code)
 	}
 }

@@ -10,15 +10,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -27,9 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,7 +35,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,6 +42,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import io.github.revise0592.mcpanel.data.ApiException
+import io.github.revise0592.mcpanel.data.Conn
+import io.github.revise0592.mcpanel.data.LogoCache
 import io.github.revise0592.mcpanel.data.Panel
 import io.github.revise0592.mcpanel.data.PanelApi
 import io.github.revise0592.mcpanel.data.PanelStore
@@ -60,30 +55,54 @@ import kotlinx.coroutines.launch
 /** How often the list refreshes while it's on screen. */
 private const val REFRESH_MS = 10_000L
 
+/** The connection details for [panel], or null if its token can't be read. */
+fun PanelStore.conn(panel: Panel): Conn? = token(panel.id)?.let { Conn(panel.address, it, headers(panel.id)) }
+
+const val LOST_TOKEN = "This phone's sign-in for the panel can't be read any more. Remove the panel and add it again."
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ServersScreen(panel: Panel, store: PanelStore, onBack: () -> Unit, onRemoved: () -> Unit) {
+fun ServersScreen(
+    panel: Panel,
+    store: PanelStore,
+    logos: LogoCache,
+    onBack: () -> Unit,
+    onOpen: (Server) -> Unit,
+    onPanelChanged: (Panel) -> Unit,
+    onRemoved: () -> Unit,
+) {
     var servers by remember(panel.id) { mutableStateOf<List<Server>?>(null) }
     var error by remember(panel.id) { mutableStateOf<String?>(null) }
     var unauthorized by remember(panel.id) { mutableStateOf(false) }
     var refreshes by remember { mutableIntStateOf(0) }
     var menuOpen by remember { mutableStateOf(false) }
     var confirmRemove by remember { mutableStateOf(false) }
+    var editHeaders by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+
+    // Pick up the panel's latest name, accent and logo once per visit.
+    LaunchedEffect(panel.id) {
+        val conn = store.conn(panel) ?: return@LaunchedEffect
+        try {
+            store.updateInfo(panel.id, PanelApi.me(conn))?.let(onPanelChanged)
+        } catch (e: ApiException) {
+            // The list below shows the problem.
+        }
+    }
 
     // Refresh every few seconds, but only while the app is on screen.
     LaunchedEffect(panel.id, refreshes) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (!unauthorized) {
-                val token = store.token(panel.id)
-                if (token == null) {
-                    error = "This phone's sign-in for the panel can't be read any more. Remove the panel and add it again."
+                val conn = store.conn(panel)
+                if (conn == null) {
+                    error = LOST_TOKEN
                     unauthorized = true
                     break
                 }
                 try {
-                    servers = PanelApi.servers(panel.address, token)
+                    servers = PanelApi.servers(conn)
                     error = null
                 } catch (e: ApiException) {
                     error = e.message
@@ -97,14 +116,15 @@ fun ServersScreen(panel: Panel, store: PanelStore, onBack: () -> Unit, onRemoved
     fun remove() {
         scope.launch {
             // Tell the panel too, if it can be reached; it doesn't matter if not.
-            store.token(panel.id)?.let { token ->
+            store.conn(panel)?.let { conn ->
                 try {
-                    PanelApi.unpair(panel.address, token)
+                    PanelApi.unpair(conn)
                 } catch (e: ApiException) {
                     // Already removed there, or offline.
                 }
             }
             store.remove(panel.id)
+            logos.forget(panel.id)
             onRemoved()
         }
     }
@@ -113,7 +133,10 @@ fun ServersScreen(panel: Panel, store: PanelStore, onBack: () -> Unit, onRemoved
         topBar = {
             TopAppBar(
                 title = {
-                    Text(panel.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        PanelLogo(panel, logos, { store.conn(panel) })
+                        Text(panel.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -129,6 +152,13 @@ fun ServersScreen(panel: Panel, store: PanelStore, onBack: () -> Unit, onRemoved
                             Icon(Icons.Default.MoreVert, contentDescription = "More")
                         }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Extra headers") },
+                                onClick = {
+                                    menuOpen = false
+                                    editHeaders = true
+                                },
+                            )
                             DropdownMenuItem(
                                 text = { Text("Remove panel") },
                                 onClick = {
@@ -152,17 +182,7 @@ fun ServersScreen(panel: Panel, store: PanelStore, onBack: () -> Unit, onRemoved
         ) {
             error?.let { msg ->
                 item(key = "error") {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text(msg, color = MaterialTheme.colorScheme.onErrorContainer)
-                            if (unauthorized) {
-                                Button(onClick = { remove() }) { Text("Remove panel") }
-                            }
-                        }
-                    }
+                    if (unauthorized) ErrorCard(msg, "Remove panel") { remove() } else ErrorCard(msg)
                 }
             }
             when {
@@ -177,32 +197,36 @@ fun ServersScreen(panel: Panel, store: PanelStore, onBack: () -> Unit, onRemoved
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                list != null -> items(list, key = { it.id }) { ServerCard(it) }
+                list != null -> items(list, key = { it.id }) { ServerCard(it) { onOpen(it) } }
             }
         }
     }
 
     if (confirmRemove) {
-        AlertDialog(
-            onDismissRequest = { confirmRemove = false },
-            title = { Text("Remove ${panel.name}?") },
-            text = { Text("This phone is unpaired from the panel. You can add it again later with a new pairing code.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmRemove = false
-                    remove()
-                }) { Text("Remove") }
+        ConfirmDialog(
+            title = "Remove ${panel.name}?",
+            text = "This phone is unpaired from the panel. You can add it again later with a new pairing code.",
+            confirm = "Remove",
+            onConfirm = { remove() },
+            onDismiss = { confirmRemove = false },
+        )
+    }
+    if (editHeaders) {
+        HeadersDialog(
+            initial = remember { store.headers(panel.id) },
+            onSave = {
+                store.setHeaders(panel.id, it)
+                unauthorized = false
+                refreshes++
             },
-            dismissButton = {
-                TextButton(onClick = { confirmRemove = false }) { Text("Cancel") }
-            },
+            onDismiss = { editHeaders = false },
         )
     }
 }
 
 @Composable
-private fun ServerCard(s: Server) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+private fun ServerCard(s: Server, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -237,26 +261,5 @@ private fun ServerCard(s: Server) {
                 Text(usageLine(u, s.memoryLimitMB), style = MaterialTheme.typography.bodySmall)
             }
         }
-    }
-}
-
-private val Green = Color(0xFF16A34A)
-private val Amber = Color(0xFFD97706)
-
-@Composable
-private fun StateBadge(s: Server) {
-    val (bg, fg) = when (s.state) {
-        "running" -> Green.copy(alpha = 0.16f) to Green
-        "starting", "stopping" -> Amber.copy(alpha = 0.16f) to Amber
-        "crashed" -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
-        else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Surface(color = bg, contentColor = fg, shape = RoundedCornerShape(50)) {
-        Text(
-            s.label,
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-        )
     }
 }

@@ -26,14 +26,23 @@ object Pairing {
     }
 
     /**
-     * Turns what the user typed into the panel's base address, such as
-     * "192.168.1.10:8080" into "http://192.168.1.10:8080". Returns null if
-     * it can't be an address.
+     * Turns what the user typed into the panel's base address. Without a
+     * scheme, a domain name such as "panel.example.com" gets https://
+     * (it's most likely behind a reverse proxy), while an IP address, a
+     * name with a port or a home network name gets http://, as in
+     * "192.168.1.10:8080". Returns null if it can't be an address.
      */
     fun normalizeAddress(input: String): String? {
         var s = input.trim()
         if (s.isEmpty()) return null
-        if (!s.contains("://")) s = "http://$s"
+        if (!s.contains("://")) {
+            val probe = try {
+                URI("http://$s")
+            } catch (e: Exception) {
+                return null
+            }
+            s = (if (looksLocal(probe)) "http://" else "https://") + s
+        }
         val uri = try {
             URI(s)
         } catch (e: Exception) {
@@ -43,6 +52,15 @@ object Pairing {
         if (scheme != "http" && scheme != "https") return null
         if (uri.host.isNullOrEmpty()) return null
         return "$scheme://${uri.rawAuthority}"
+    }
+
+    private fun looksLocal(uri: URI): Boolean {
+        val host = uri.host?.lowercase() ?: return true
+        return uri.port != -1 ||
+            host.startsWith("[") ||
+            host.all { it.isDigit() || it == '.' } ||
+            !host.contains('.') ||
+            host.endsWith(".local") || host.endsWith(".lan") || host.endsWith(".home.arpa")
     }
 
     private fun decode(s: String): String = URLDecoder.decode(s, "UTF-8")

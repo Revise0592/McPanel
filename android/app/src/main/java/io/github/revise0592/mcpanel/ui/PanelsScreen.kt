@@ -3,6 +3,7 @@ package io.github.revise0592.mcpanel.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,12 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import io.github.revise0592.mcpanel.data.LogoCache
 import io.github.revise0592.mcpanel.data.Panel
+import io.github.revise0592.mcpanel.data.PanelStore
 import io.github.revise0592.mcpanel.ui.theme.McPanelTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PanelsScreen(panels: List<Panel>, onAdd: () -> Unit, onOpen: (Panel) -> Unit) {
+fun PanelsScreen(panels: List<Panel>, store: PanelStore?, logos: LogoCache?, onAdd: () -> Unit, onOpen: (Panel) -> Unit) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("McPanel") }) },
         floatingActionButton = {
@@ -73,13 +76,20 @@ fun PanelsScreen(panels: List<Panel>, onAdd: () -> Unit, onOpen: (Panel) -> Unit
             ) {
                 items(panels, key = { it.id }) { panel ->
                     Card(onClick = { onOpen(panel) }, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(panel.name, style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                panel.address,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        Row(
+                            Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            PanelLogo(panel, logos, { store?.conn(panel) }, logoSize = 40.dp)
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(panel.name, style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    panel.address,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
@@ -92,6 +102,6 @@ fun PanelsScreen(panels: List<Panel>, onAdd: () -> Unit, onOpen: (Panel) -> Unit
 @Composable
 private fun PanelsScreenPreview() {
     McPanelTheme {
-        PanelsScreen(listOf(Panel("1", "https://panel.example.com", "Home server", "d")), {}, {})
+        PanelsScreen(listOf(Panel("1", "https://panel.example.com", "Home server", "d")), null, null, {}, {})
     }
 }

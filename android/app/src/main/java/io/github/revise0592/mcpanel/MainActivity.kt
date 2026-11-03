@@ -8,11 +8,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import io.github.revise0592.mcpanel.data.LogoCache
 import io.github.revise0592.mcpanel.data.Pairing
 import io.github.revise0592.mcpanel.data.PairingLink
 import io.github.revise0592.mcpanel.data.PanelStore
 import io.github.revise0592.mcpanel.ui.App
-import io.github.revise0592.mcpanel.ui.theme.McPanelTheme
 
 class MainActivity : ComponentActivity() {
     /** A mcpanel://pair link the app was opened with, until it's been shown. */
@@ -23,10 +23,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         if (savedInstanceState == null) link = linkFrom(intent)
         val store = PanelStore(this)
+        val logos = LogoCache(this)
         setContent {
-            McPanelTheme {
-                App(store = store, link = link, onLinkHandled = { link = null })
-            }
+            App(store = store, logos = logos, link = link, onLinkHandled = { link = null })
         }
     }
 
