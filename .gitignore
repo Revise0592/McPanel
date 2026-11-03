@@ -3,8 +3,8 @@
 *.test
 
 # Never commit keys or secrets
-github
-github.pub
+/github
+/github.pub
 id_*
 *_ed25519*
 *_rsa*

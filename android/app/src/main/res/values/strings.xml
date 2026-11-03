@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">McPanel</string>
+    <string name="no_panels_title">No panels yet</string>
+    <string name="no_panels_body">To connect a panel, open it in your browser and go to Settings → Mobile app. Adding it from here comes in the next version.</string>
+</resources>

@@ -18,6 +18,8 @@ permissions:
 
 jobs:
   version:
+    # Android app releases (android-v0.1.0) are built by android.yml.
+    if: ${{ !startsWith(github.event.release.tag_name || inputs.tag || '', 'android-') }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.v.outputs.tag }}

@@ -1,0 +1,108 @@
+name: Android
+
+# Builds the app in android/ whenever it changes, and publishes a signed APK
+# to a GitHub release when a tag like android-v0.1.0 is pushed. Panel
+# releases use plain v1.2.3 tags and are handled by release.yml.
+on:
+  push:
+    branches: ['**']
+    tags: ['android-v*']
+    paths:
+      - android/**
+      - .github/workflows/android.yml
+  pull_request:
+    paths:
+      - android/**
+      - .github/workflows/android.yml
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: android
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      # Also checks that gradle-wrapper.jar is a genuine Gradle release.
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build and lint
+        run: ./gradlew --no-daemon assembleDebug lintDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcpanel-android-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: lint-report
+          path: android/app/build/reports/lint-results-debug.html
+          if-no-files-found: ignore
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/android-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create the release
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Check the tag matches the app version
+        id: v
+        run: |
+          tag="${GITHUB_REF_NAME#android-v}"
+          name="$(sed -nE 's/^ *versionName = "([^"]+)".*/\1/p' app/build.gradle.kts)"
+          code="$(sed -nE 's/^ *versionCode = ([0-9]+).*/\1/p' app/build.gradle.kts)"
+          if [ "$tag" != "$name" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match versionName $name in app/build.gradle.kts"
+            exit 1
+          fi
+          echo "version=$name" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+      - name: Get the signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Add the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD secrets first (see android/README.md)"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+      - name: Build signed APK
+        env:
+          MCPANEL_KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          MCPANEL_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MCPANEL_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MCPANEL_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew --no-daemon assembleRelease
+          mkdir dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/mcpanel-android-${{ steps.v.outputs.version }}.apk"
+          cd dist && sha256sum *.apk > SHA256SUMS
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+          CODE: ${{ steps.v.outputs.code }}
+        # --latest=false keeps the panel's own release as "latest", which
+        # the panel's install instructions and release.yml rely on.
+        run: |
+          notes="fastlane/metadata/android/en-US/changelogs/$CODE.txt"
+          [ -f "$notes" ] || notes=/dev/null
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "McPanel for Android $VERSION" \
+            --notes-file "$notes" \
+            --latest=false
