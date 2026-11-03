@@ -44,6 +44,8 @@ type App struct {
 	Tasks     *schedule.Scheduler
 	Notify    *notify.Notifier
 	SetupCode string
+	// Version is the McPanel release, reported to the mobile app.
+	Version string
 
 	sessions *auth.Sessions
 	limiter  *auth.Limiter
@@ -51,6 +53,7 @@ type App struct {
 	partials *template.Template
 	imports  importSet
 	heads    *heads.Cache
+	pairing  pairing
 }
 
 // New builds the app and parses templates.
@@ -249,6 +252,10 @@ func (a *App) Handler() http.Handler {
 	p("GET /settings/backups", a.panelSettingsPage("backups"))
 	p("POST /settings/backups", a.saveBackupCopyDir)
 	p("GET /settings/alerts", a.panelSettingsPage("alerts"))
+	p("GET /settings/mobile", a.mobilePage)
+	p("POST /settings/mobile/pair", a.startPairing)
+	p("POST /settings/mobile/pair/cancel", a.cancelPairing)
+	p("POST /settings/mobile/{id}/remove", a.removeDevice)
 	p("POST /settings/alerts", a.saveAlerts)
 	p("POST /settings/alerts/test", a.testAlert)
 	p("POST /settings", a.savePanelSettings)
@@ -261,6 +268,8 @@ func (a *App) Handler() http.Handler {
 	p("POST /settings/2fa", a.twoFactorSetupSubmit)
 	p("POST /settings/2fa/disable", a.twoFactorDisable)
 	p("POST /settings/2fa/codes", a.twoFactorNewCodes)
+
+	a.apiRoutes(mux)
 
 	return securityHeaders(sameOrigin(mux))
 }

@@ -191,6 +191,7 @@ func (s *Settings) DisableTwoFactor() {
 type file struct {
 	Settings Settings  `json:"settings"`
 	Servers  []*Server `json:"servers"`
+	Devices  []Device  `json:"devices,omitempty"`
 }
 
 // Store is safe for concurrent use. Getters return copies.

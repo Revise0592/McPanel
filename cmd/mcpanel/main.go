@@ -78,6 +78,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	app.Version = version
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -161,6 +162,12 @@ func resetPassword(args []string) {
 	})
 	if err != nil {
 		log.Fatal(err)
+	}
+	if len(st.Devices()) > 0 {
+		if err := st.RemoveAllDevices(); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Paired phones have been unpaired; pair them again in Settings → Mobile app.")
 	}
 	fmt.Printf("Password changed. Sign in as %q.\n", st.Settings().Username)
 	if twoFactor {

@@ -1,0 +1,14 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing keys stay out of the repo; CI gets them from secrets.
+*.jks
+*.keystore
+keystore.properties

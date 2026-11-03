@@ -1,0 +1,1 @@
+First version: the app skeleton. It does not connect to a panel yet.

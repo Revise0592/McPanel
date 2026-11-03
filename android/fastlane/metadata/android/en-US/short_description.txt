@@ -1,0 +1,1 @@
+Companion app for McPanel, the self-hosted Minecraft server panel

@@ -1,0 +1,4 @@
+<resources>
+    <!-- Only used until Compose draws the first frame. -->
+    <style name="Theme.McPanel" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

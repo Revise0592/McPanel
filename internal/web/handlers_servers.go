@@ -329,6 +329,12 @@ func (a *App) consoleStream(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	streamConsole(w, r, inst)
+}
+
+// streamConsole sends the console's recent lines, then new ones as they
+// come, as server-sent events.
+func streamConsole(w http.ResponseWriter, r *http.Request, inst *mc.Instance) {
 	fl, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
