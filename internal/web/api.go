@@ -100,6 +100,11 @@ func (a *App) apiRoutes(mux *http.ServeMux) {
 	d("GET /api/v1/servers/{id}/activity", a.apiServerActivity)
 	d("GET /api/v1/servers/{id}/usage", a.apiUsage)
 	d("GET /api/v1/activity", a.apiActivity)
+	d("GET /api/v1/servers/{id}/players", a.apiPlayers)
+	d("POST /api/v1/servers/{id}/players", a.apiPlayersAction)
+	// The same as /brand/logo.png, but behind the token: a login proxy in
+	// front of the panel may only let /api/v1 through.
+	d("GET /api/v1/logo", a.serveLogo)
 	// Anything else under /api gets a JSON 404 rather than a redirect to
 	// the sign-in page.
 	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -108,15 +113,30 @@ func (a *App) apiRoutes(mux *http.ServeMux) {
 }
 
 type apiPanel struct {
-	Name       string `json:"name"`
-	Accent     string `json:"accent"`
+	Name   string `json:"name"`
+	Accent string `json:"accent"`
+	// AccentText is the text colour for buttons filled with the accent.
+	AccentText string `json:"accentText"`
+	// Theme is system, light or dark, as chosen in Settings → Appearance.
+	Theme string `json:"theme"`
+	// Logo is the API path of the uploaded logo, with a ?v= that changes
+	// with each upload. Left out when there isn't one.
+	Logo       string `json:"logo,omitempty"`
 	Version    string `json:"version"`
 	APIVersion int    `json:"apiVersion"`
 }
 
 func (a *App) panelInfo() apiPanel {
 	s := a.Store.Settings()
-	return apiPanel{Name: s.PanelName, Accent: s.Accent, Version: a.Version, APIVersion: apiVersion}
+	p := apiPanel{
+		Name: s.PanelName, Accent: s.Accent, AccentText: accentText(s.Accent), Theme: s.Theme,
+		Version: a.Version, APIVersion: apiVersion,
+	}
+	if u := a.logoURL(); u != "" {
+		_, v, _ := strings.Cut(u, "?")
+		p.Logo = "/api/v1/logo?" + v
+	}
+	return p
 }
 
 type apiDevice struct {

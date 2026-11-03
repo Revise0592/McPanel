@@ -4,7 +4,27 @@ A companion app for McPanel. It pairs with your own panel and lets you
 check on your servers from your phone. It talks to the panel's JSON API,
 described in [`docs/mobile-api.md`](../docs/mobile-api.md).
 
-This is an early version: so far it's only the project skeleton.
+It pairs with a panel by its address and code, or by opening the
+`mcpanel://pair` link in the panel's QR code (the phone's camera app can
+open it). Then it can:
+
+- List the panel's servers, with who's playing and CPU, memory and TPS
+- Start, stop, restart and kill a server, or wake a sleeping one
+- Show the live console, with the web UI's colours and filters, and send
+  commands
+- Manage players: kick, op, ban, the whitelist, and players the
+  whitelist turned away
+- Show each server's activity
+
+Each panel's screens use its accent colour, light or dark theme and logo
+from Settings → Appearance.
+
+Panels behind HTTPS reverse proxies work. If a login proxy such as
+Pangolin, Authelia or Cloudflare Access is in front of the panel, let
+`/api/v1/*` bypass its login. The app recognises these proxies and says
+how. For proxies that check a header instead, such as Cloudflare Access
+service tokens, a panel can have extra headers. They're kept encrypted,
+like the sign-in token.
 
 - App ID: `io.github.revise0592.mcpanel` (debug builds add `.debug`, so both
   can be installed side by side)

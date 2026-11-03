@@ -142,12 +142,13 @@
       <img class="qr" src="{{$d.QR}}" alt="QR code for pairing the McPanel app" width="240" height="240">
       <p class="muted small">Can't scan it? Enter the address <code>{{$d.URL}}</code> and the code <strong class="mono">{{$d.Code}}</strong>.</p>
       <p class="muted small">Your phone has to reach the panel at that address. If you're away from home, open McPanel through the address you use from outside (such as your HTTPS proxy) before pairing.</p>
+      <p class="muted small">If a login proxy such as Pangolin, Authelia or Cloudflare Access is in front of the panel, let <code>/api/v1/*</code> through without its login, or the app can't get in. The app has its own sign-in, so the API stays protected.</p>
       <div class="form-actions">
         <form class="inline" method="post" action="/settings/mobile/pair/cancel"><button class="btn ghost">Cancel</button></form>
         <a class="btn" href="/settings/mobile">I've paired it</a>
       </div>
       {{else}}
-      <p class="desc">Check on your servers, start and stop them and use the console from the McPanel app. A paired phone stays signed in until you remove it here or change your password.</p>
+      <p class="desc">Check on your servers, start and stop them, use the console and manage players from the McPanel app. The app takes on this panel's accent colour, theme and logo. A paired phone stays signed in until you remove it here or change your password.</p>
       {{if not $d.HTTPS}}<p class="muted small">You're on plain HTTP, so the app's traffic, including its sign-in token, isn't encrypted. Pair over your HTTPS address if you have one.</p>{{end}}
       <form method="post" action="/settings/mobile/pair" class="form-actions"><button class="btn primary">Pair a phone</button></form>
       {{end}}

@@ -36,7 +36,8 @@ sign-in cookie.
    {
      "token": "mcp_…",
      "device": {"id": "a251fa66fe61", "name": "Pixel 9", "createdAt": "…"},
-     "panel": {"name": "McPanel", "accent": "#3b82f6", "version": "1.4.0", "apiVersion": 1}
+     "panel": {"name": "McPanel", "accent": "#3b82f6", "accentText": "#fff", "theme": "system",
+               "logo": "/api/v1/logo?v=1730620800000000000", "version": "1.4.0", "apiVersion": 1}
    }
    ```
 
@@ -44,6 +45,13 @@ sign-in cookie.
    securely, for example with Android Keystore or EncryptedSharedPreferences.
    Ten wrong codes from one address lock that address out for 15 minutes
    (`429`).
+
+`panel` is how the panel looks in Settings → Appearance, so the app can
+match it: `accent` is the accent colour, `accentText` the text colour for
+buttons filled with it (white, or near-black for light accents), and
+`theme` is `system`, `light` or `dark`. `logo` is only there when a logo
+has been uploaded; its `?v=` changes with each upload, so the app can
+keep a copy until it does.
 
 Every other request sends the token:
 
@@ -86,6 +94,9 @@ Errors have a status code and a message that can be shown to the user:
 | `GET /api/v1/servers/{id}/activity?limit=50` | The server's history, newest first |
 | `GET /api/v1/servers/{id}/usage?range=hour` | CPU, memory and TPS samples (`hour` or `day`), oldest first |
 | `GET /api/v1/activity?since=…&limit=50` | Recent events from every server, newest first |
+| `GET /api/v1/servers/{id}/players` | Who's online and the server's player lists (see below) |
+| `POST /api/v1/servers/{id}/players` | Body `{"action": "op", "name": "Steve"}`. Returns the lists afterwards |
+| `GET /api/v1/logo` | The panel's uploaded logo (PNG), or `404` |
 
 `limit` is at most 200.
 
@@ -141,6 +152,35 @@ events such as a finished backup. `serverId` and `serverName` are only in
 event you've seen as `since` (RFC 3339) to get only newer ones. Until push
 notifications exist, an app can poll this to notify the user.
 
+### Players
+
+```json
+{
+  "online": ["Steve"],
+  "rejected": ["Alex"],
+  "whitelistOn": true,
+  "whitelist": ["Steve"],
+  "ops": [],
+  "bans": [],
+  "recent": [{"name": "Herobrine", "seen": "2026-11-02T20:15:00Z", "playedMins": 95}],
+  "bedrock": false
+}
+```
+
+- `rejected` are players the whitelist turned away since the server
+  started.
+- `recent` is up to 10 players who have played before, most recent first,
+  leaving out those online now.
+- Bedrock servers have only an allowlist (`whitelist` here) when stopped;
+  ops and bans need the server running.
+- Velocity proxies have no lists of their own and answer `409`.
+
+`action` is one of `kick`, `whitelist-on`, `whitelist-off`, `allow`,
+`unallow`, `dismiss` (forget a rejected player), `op`, `deop`, `ban` and
+`unban`. A running server gets a console command; a stopped one has its
+files edited. A name that isn't valid gives `400`; kicking on a stopped
+server gives `409`.
+
 ### Console stream
 
 `GET /api/v1/servers/{id}/console` is a `text/event-stream`. It sends the
@@ -157,5 +197,13 @@ browser's `EventSource` can't.
 - The QR code uses the address the browser used to open the pairing page.
   To pair a phone that will be used away from home, open the panel through
   its public address first.
+- A login proxy in front of the panel, such as Pangolin, Authelia or
+  Cloudflare Access, answers the app with its own redirect or a bare
+  `401` before McPanel sees the request. Let `/api/v1/*` bypass the
+  proxy's login (in Pangolin: the resource's Rules, a bypass-auth rule
+  for the path `/api/v1/*`). The API's own tokens still protect it. If the
+  proxy can check a header instead, such as a Cloudflare Access service
+  token, the app can send extra headers with each request. The app
+  recognises these answers and says what to do.
 - Requests with an `Origin` header from another site are refused, the same
   as for the web pages. Native apps don't send one.

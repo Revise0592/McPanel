@@ -1,1 +1,1 @@
-First version: the app skeleton. It does not connect to a panel yet.
+First version: pair with your panel and see your servers, who's playing, and CPU, memory and TPS.
