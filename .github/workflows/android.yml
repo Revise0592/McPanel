@@ -34,7 +34,7 @@ jobs:
       # Also checks that gradle-wrapper.jar is a genuine Gradle release.
       - uses: gradle/actions/setup-gradle@v4
       - name: Build and lint
-        run: ./gradlew --no-daemon assembleDebug lintDebug
+        run: ./gradlew --no-daemon assembleDebug lintDebug testDebugUnitTest
       - uses: actions/upload-artifact@v4
         with:
           name: mcpanel-android-debug

@@ -4,7 +4,9 @@ A companion app for McPanel. It pairs with your own panel and lets you
 check on your servers from your phone. It talks to the panel's JSON API,
 described in [`docs/mobile-api.md`](../docs/mobile-api.md).
 
-This is an early version: so far it's only the project skeleton.
+This is an early version. It pairs with a panel (by typing the address and
+code, or by opening a `mcpanel://pair` link) and shows its servers, who's
+playing, and CPU, memory and TPS, refreshing every 10 seconds.
 
 - App ID: `io.github.revise0592.mcpanel` (debug builds add `.debug`, so both
   can be installed side by side)

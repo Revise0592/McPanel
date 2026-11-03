@@ -1,8 +1,12 @@
 <p>McPanel is a self-hosted web panel for running Minecraft servers. This app connects to your own panel so you can keep an eye on your servers from your phone.</p>
-<p>This is an early version. It doesn't connect to a panel yet. Coming next:</p>
+<p>This is an early version. It can:</p>
 <ul>
-<li>Pair with your panel by scanning a QR code from its settings</li>
-<li>See which servers are up, who's playing, and CPU, memory and TPS</li>
+<li>Pair with your panel using the code from its settings</li>
+<li>Show which servers are up, who's playing, and CPU, memory and TPS</li>
+</ul>
+<p>Coming next:</p>
+<ul>
+<li>Scanning the pairing QR code</li>
 <li>Start, stop and restart servers</li>
 <li>Live console, and sending commands</li>
 <li>Notifications when a server crashes or something fails</li>
