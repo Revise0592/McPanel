@@ -259,8 +259,10 @@ func (a *App) changePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	hash := auth.HashPassword(pw)
 	a.Store.UpdateSettings(func(s *store.Settings) { s.PasswordHash = hash })
+	// Someone who learnt the old password may have paired a phone too.
+	a.Store.RemoveAllDevices()
 	// The old cookie is now invalid; issue a fresh one for this browser.
 	a.sessions.Issue(w)
-	setFlash(w, "Password changed. Other browsers have been signed out.")
+	setFlash(w, "Password changed. Other browsers have been signed out and phones unpaired.")
 	back(w, r, accountURL)
 }
