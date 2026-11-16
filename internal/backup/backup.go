@@ -194,10 +194,15 @@ func create(dataDir string, inst *mc.Instance, label string) (Backup, error) {
 					return strings.Contains(l, "Files are now ready to be copied")
 				})
 				qcancel()
-				if err == nil {
+				switch {
+				case err == nil:
 					ready = true
-				} else if ctx.Err() != nil {
+				case ctx.Err() != nil:
 					return Backup{}, errors.New("server did not get ready for backup")
+				case !errors.Is(err, context.DeadlineExceeded):
+					// The server stopped or its console broke; asking again
+					// would only spin until the timeout.
+					return Backup{}, fmt.Errorf("server did not get ready for backup: %w", err)
 				}
 			}
 		}
@@ -268,7 +273,14 @@ func Restore(dataDir string, inst *mc.Instance, name string, worldOnly bool) err
 	if err := inst.BeginTask("Restoring"); err != nil {
 		return err
 	}
-	defer inst.EndTask()
+	// The task is ended early on success so the server can start again;
+	// on every other way out it's ended here.
+	ended := false
+	defer func() {
+		if !ended {
+			inst.EndTask()
+		}
+	}()
 
 	tops, err := archive.TopLevel(src)
 	if err != nil {
@@ -307,6 +319,7 @@ func Restore(dataDir string, inst *mc.Instance, name string, worldOnly bool) err
 		inst.Record(activity.Info, "Restored backup from %s", strings.TrimSuffix(name, ".tar.gz"))
 	}
 	inst.EndTask()
+	ended = true
 	if wasOnline {
 		return inst.Start()
 	}
@@ -512,7 +525,7 @@ func CheckCopyDir(dataDir, dir string) error {
 	if err != nil || !info.IsDir() {
 		return errors.New("that folder doesn't exist")
 	}
-	if rel, err := filepath.Rel(dataDir, dir); err == nil && !strings.HasPrefix(rel, "..") {
+	if rel, err := filepath.Rel(dataDir, dir); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return errors.New("choose a folder outside McPanel's data folder")
 	}
 	f, err := os.CreateTemp(dir, ".mcpanel-check-*")

@@ -144,6 +144,11 @@ func Change(def store.Server, inst *mc.Instance, kind, name string, add bool) er
 	if !ValidName(def.Type, name) {
 		return errors.New("that doesn't look like a valid player name")
 	}
+	if def.Type == store.TypeBedrock && kind == Bans && !add {
+		// "Banning" on Bedrock only kicks, so there's nothing to undo; without
+		// this, unbanning would kick the player.
+		return errors.New("Bedrock servers have no ban list")
+	}
 	if inst.Status().State == mc.Running {
 		return inst.Send(command(def.Type, kind, name, add))
 	}

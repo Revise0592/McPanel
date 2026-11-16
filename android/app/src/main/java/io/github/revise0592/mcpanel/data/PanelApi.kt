@@ -93,6 +93,9 @@ object PanelApi {
 
     /** The panel's logo as PNG bytes. [logo] is the path from [PanelInfo.logo]. */
     suspend fun logo(conn: Conn, logo: String): ByteArray = withContext(Dispatchers.IO) {
+        // The path comes from the panel. Anything not under /api/ (such as
+        // "@other.host/x") could send this phone's token and headers elsewhere.
+        if (!logo.startsWith("/api/")) throw ApiException("The panel's logo address isn't one the app uses.")
         val c = open(conn, "GET", logo, TIMEOUT_MS)
         try {
             val status = c.responseCode

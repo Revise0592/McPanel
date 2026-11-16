@@ -140,7 +140,8 @@ turns two-factor sign-in off and shows your username.
 - **Bedrock download fails:** get the Linux server zip from minecraft.net and
   use *Settings → Install from a zip*.
 - **Player heads** are fetched from Mojang by the panel, not your browser,
-  and kept in memory for a day. Bedrock players get a plain face.
+  and kept in memory for up to an hour (sooner when a player rejoins, so new
+  skins show). Bedrock players get a plain face.
 - **Exposing the panel to the internet:** put it behind HTTPS, either with
   `-tls-cert`/`-tls-key` or a reverse proxy.
 

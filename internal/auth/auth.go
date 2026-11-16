@@ -166,7 +166,13 @@ func (l *Limiter) recent(addr string) []time.Time {
 			keep = append(keep, t)
 		}
 	}
-	l.failures[addr] = keep
+	// Forget addresses with nothing recent, so the map doesn't grow with
+	// every address that ever tried.
+	if len(keep) == 0 {
+		delete(l.failures, addr)
+	} else {
+		l.failures[addr] = keep
+	}
 	return keep
 }
 

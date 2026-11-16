@@ -202,6 +202,8 @@
         credentials: "same-origin"
       }).then(function (r) {
         if (!r.ok) return r.text().then(function (t) { toast(t.trim()); });
+      }).catch(function () {
+        toast("Couldn't reach the panel. The command wasn't sent.");
       });
       box.scrollTop = box.scrollHeight;
     };
