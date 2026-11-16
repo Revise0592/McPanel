@@ -178,6 +178,7 @@ type Settings struct {
 	AlertFailures bool   `json:"alertFailures,omitempty"`
 	AlertUpdates  bool   `json:"alertUpdates,omitempty"`
 	AlertPower    bool   `json:"alertPower,omitempty"`
+	AlertPlayers  bool   `json:"alertPlayers,omitempty"`
 }
 
 // TwoFactor reports whether two-factor sign-in is on.

@@ -70,6 +70,7 @@ func New(st *store.Store, mgr *mc.Manager, setupCode string, secureCookies bool)
 		heads:     heads.New(),
 	}
 	mgr.Activity().OnEvent(a.Notify.Event)
+	mgr.OnPlayer = a.Notify.Player
 	mgr.OnJoin = a.heads.Forget
 	importer.CleanStale(filepath.Join(mgr.DataDir(), "tmp"))
 	a.sessions = &auth.Sessions{

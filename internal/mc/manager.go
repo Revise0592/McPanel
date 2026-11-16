@@ -28,6 +28,9 @@ type Manager struct {
 	// server. Set it before servers start. It runs while the server's state
 	// is locked, so it must be quick and must not call back into the manager.
 	OnJoin func(name string)
+	// OnPlayer, if set, is called in its own goroutine when a player joins
+	// or leaves a running server (not when the server stops under them).
+	OnPlayer func(serverID, name string, joined bool)
 
 	mu    sync.Mutex
 	insts map[string]*Instance

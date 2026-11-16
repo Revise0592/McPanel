@@ -121,6 +121,8 @@ func main() {
 	}()
 	srv.Shutdown(sctx)
 	mgr.StopAll(sctx)
+	// Send the "Stopped" alerts raised above before exiting.
+	app.Notify.Flush(sctx)
 	log.Printf("Bye")
 }
 

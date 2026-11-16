@@ -1,6 +1,9 @@
 package mc
 
 import (
+	"fmt"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -51,5 +54,33 @@ func TestPlayerStatsSurviveRestart(t *testing.T) {
 	s := again.PlayerStats()["Steve"]
 	if s.Played < 90*time.Minute || s.Played > 91*time.Minute || s.FirstSeen.IsZero() {
 		t.Fatalf("stats = %+v", s)
+	}
+}
+
+func TestPlayerHookOncePerJoin(t *testing.T) {
+	dir := t.TempDir()
+	st, err := store.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := NewManager(dir, st)
+	i := newInstance(m, "a")
+	i.state = Running
+	var mu sync.Mutex
+	var got []string
+	i.m.OnPlayer = func(_, name string, joined bool) {
+		mu.Lock()
+		got = append(got, fmt.Sprintf("%s %t", name, joined))
+		mu.Unlock()
+	}
+	i.addLine("[09:25:30 INFO]: Steve[/1.2.3.4:5555] logged in with entity id 1 at (0, 64, 0)")
+	i.addLine("[09:25:30 INFO]: Steve joined the game")
+	time.Sleep(20 * time.Millisecond)
+	i.addLine("[09:26:30 INFO]: Steve left the game")
+	time.Sleep(50 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if want := []string{"Steve true", "Steve false"}; !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
