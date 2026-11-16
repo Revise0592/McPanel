@@ -32,7 +32,10 @@ func TestCheckCopyDir(t *testing.T) {
 	}
 	inside := filepath.Join(data, "copies")
 	os.Mkdir(inside, 0o755)
-	for _, bad := range []string{"relative/path", filepath.Join(out, "missing"), inside, data} {
+	// A name starting with ".." is still inside the data folder.
+	dotted := filepath.Join(data, "..copies")
+	os.Mkdir(dotted, 0o755)
+	for _, bad := range []string{"relative/path", filepath.Join(out, "missing"), inside, dotted, data} {
 		if CheckCopyDir(data, bad) == nil {
 			t.Errorf("CheckCopyDir(%q) accepted", bad)
 		}

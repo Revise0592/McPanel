@@ -62,29 +62,38 @@ func (c *counter) add(n int64) {
 }
 
 // ExtractZip extracts src into dir. Entries for which skip returns true
-// are not written.
+// are not written. Everything is written through an os.Root, so neither the
+// archive nor symlinks already in dir can place files outside it.
 func ExtractZip(src, dir string, skip SkipFunc) error {
 	zr, err := zip.OpenReader(src)
 	if err != nil {
 		return err
 	}
 	defer zr.Close()
+	root, err := openRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	for _, f := range zr.File {
 		name := strings.TrimPrefix(filepath.ToSlash(f.Name), "./")
 		if name == "" || (skip != nil && skip(name)) {
 			continue
 		}
-		dst, err := safeJoin(dir, name)
+		rel, err := relPath(dir, name)
 		if err != nil {
 			return err
 		}
+		if rel == "." {
+			continue
+		}
 		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(dst, 0o755); err != nil {
+			if err := root.MkdirAll(rel, 0o755); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		if err := root.MkdirAll(filepath.Dir(rel), 0o755); err != nil {
 			return err
 		}
 		rc, err := f.Open()
@@ -95,13 +104,31 @@ func ExtractZip(src, dir string, skip SkipFunc) error {
 		if mode == 0 {
 			mode = 0o644
 		}
-		err = writeFile(dst, rc, mode|0o200)
+		err = writeFile(root, rel, rc, mode|0o200)
 		rc.Close()
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// openRoot makes dir if needed and opens it as an os.Root.
+func openRoot(dir string) (*os.Root, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	return os.OpenRoot(dir)
+}
+
+// relPath checks that an archive entry stays inside dir and returns it
+// relative to dir.
+func relPath(dir, name string) (string, error) {
+	p, err := safeJoin(dir, name)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Rel(filepath.Clean(dir), p)
 }
 
 // ExtractTarGz extracts src into dir, dropping the first strip path components.
@@ -121,6 +148,11 @@ func ExtractTarGz(src, dir string, strip int, prog ProgressFunc) error {
 		return err
 	}
 	defer gz.Close()
+	root, err := openRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
 	tr := tar.NewReader(gz)
 	for {
 		h, err := tr.Next()
@@ -134,24 +166,30 @@ func ExtractTarGz(src, dir string, strip int, prog ProgressFunc) error {
 		if name == "" {
 			continue
 		}
-		dst, err := safeJoin(dir, name)
+		rel, err := relPath(dir, name)
 		if err != nil {
 			return err
 		}
+		if rel == "." {
+			continue
+		}
 		switch h.Typeflag {
 		case tar.TypeDir:
-			if err := os.MkdirAll(dst, 0o755); err != nil {
+			if err := root.MkdirAll(rel, 0o755); err != nil {
 				return err
 			}
 		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			if err := root.MkdirAll(filepath.Dir(rel), 0o755); err != nil {
 				return err
 			}
-			if err := writeFile(dst, tr, os.FileMode(h.Mode).Perm()|0o200); err != nil {
+			if err := writeFile(root, rel, tr, os.FileMode(h.Mode).Perm()|0o200); err != nil {
 				return err
 			}
 		case tar.TypeSymlink:
-			// Only allow relative links that stay inside dir.
+			// Only allow relative links that stay inside dir. A chain of
+			// links can still lead out, but the os.Root refuses to follow
+			// one there when later entries are written.
+			dst := filepath.Join(dir, rel)
 			target := filepath.Join(filepath.Dir(dst), h.Linkname)
 			if filepath.IsAbs(h.Linkname) {
 				return fmt.Errorf("unsafe symlink in archive: %q", h.Name)
@@ -159,11 +197,11 @@ func ExtractTarGz(src, dir string, strip int, prog ProgressFunc) error {
 			if _, err := safeJoin(dir, mustRel(dir, target)); err != nil {
 				return err
 			}
-			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			if err := root.MkdirAll(filepath.Dir(rel), 0o755); err != nil {
 				return err
 			}
-			os.Remove(dst)
-			if err := os.Symlink(h.Linkname, dst); err != nil {
+			root.Remove(rel)
+			if err := root.Symlink(h.Linkname, rel); err != nil {
 				return err
 			}
 		}
@@ -178,8 +216,8 @@ func mustRel(base, target string) string {
 	return r
 }
 
-func writeFile(dst string, r io.Reader, mode os.FileMode) error {
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
+func writeFile(root *os.Root, name string, r io.Reader, mode os.FileMode) error {
+	out, err := root.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 	if err != nil {
 		return err
 	}

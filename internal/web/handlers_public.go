@@ -121,10 +121,12 @@ func (a *App) publicView(r *http.Request, sv store.Server, inst *mc.Instance) pu
 	return p
 }
 
-// HeadURL is where the page loads a player's head from.
+// HeadURL is where the page loads a player's head from. Bedrock players
+// get the placeholder, served under the status page's own address since
+// visitors aren't signed in.
 func (p publicView) HeadURL(name string) string {
 	if !store.IsJava(p.Type) {
-		return "/heads/-"
+		return "/s/" + p.Token + "/heads/-"
 	}
 	return "/s/" + p.Token + "/heads/" + url.PathEscape(name)
 }
@@ -163,7 +165,8 @@ func (a *App) statusHead(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !slices.Contains(inst.Status().Players, r.PathValue("name")) {
+	// "-" is the placeholder face, which reveals nothing.
+	if name := r.PathValue("name"); name != "-" && !slices.Contains(inst.Status().Players, name) {
 		http.NotFound(w, r)
 		return
 	}

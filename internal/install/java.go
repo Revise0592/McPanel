@@ -16,10 +16,16 @@ var javaMu sync.Mutex
 // JavaPath returns the java binary for a managed runtime of the given major
 // version, downloading Eclipse Temurin if needed.
 func JavaPath(ctx context.Context, dataDir string, major int, logf Logf) (string, error) {
-	javaMu.Lock()
-	defer javaMu.Unlock()
 	dir := filepath.Join(dataDir, "runtimes", fmt.Sprintf("java-%d", major))
 	bin := filepath.Join(dir, "bin", "java")
+	// A runtime only appears once it's complete (it's renamed into place),
+	// so one that's there can be used without waiting for a download of
+	// another version to finish.
+	if _, err := os.Stat(bin); err == nil {
+		return bin, nil
+	}
+	javaMu.Lock()
+	defer javaMu.Unlock()
 	if _, err := os.Stat(bin); err == nil {
 		return bin, nil
 	}

@@ -19,28 +19,28 @@ const recoveryCodeCount = 10
 
 // checkSecondFactor verifies a TOTP or recovery code against the current
 // settings, consuming it on success. It reports whether it matched and
-// whether a recovery code was used.
+// whether a recovery code was used. The check and the consuming happen
+// under the settings lock, so two requests can't both use the same code.
 func (a *App) checkSecondFactor(code string) (ok, recovery bool) {
-	set := a.Store.Settings()
-	if !set.TwoFactor() {
-		return false, false
-	}
-	if auth.LooksLikeRecoveryCode(code) {
-		h := auth.HashRecoveryCode(code)
-		if !slices.Contains(set.RecoveryHashes, h) {
-			return false, true
+	recovery = auth.LooksLikeRecoveryCode(code)
+	a.Store.UpdateSettings(func(s *store.Settings) {
+		if !s.TwoFactor() {
+			return
 		}
-		a.Store.UpdateSettings(func(s *store.Settings) {
-			s.RecoveryHashes = slices.DeleteFunc(s.RecoveryHashes, func(x string) bool { return x == h })
-		})
-		return true, true
-	}
-	step, ok := auth.CheckTOTP(set.TOTPSecret, code, time.Now(), set.TOTPLastStep)
-	if !ok {
-		return false, false
-	}
-	a.Store.UpdateSettings(func(s *store.Settings) { s.TOTPLastStep = step })
-	return true, false
+		if recovery {
+			h := auth.HashRecoveryCode(code)
+			if slices.Contains(s.RecoveryHashes, h) {
+				s.RecoveryHashes = slices.DeleteFunc(s.RecoveryHashes, func(x string) bool { return x == h })
+				ok = true
+			}
+			return
+		}
+		if step, match := auth.CheckTOTP(s.TOTPSecret, code, time.Now(), s.TOTPLastStep); match {
+			s.TOTPLastStep = step
+			ok = true
+		}
+	})
+	return ok, recovery
 }
 
 func (a *App) loginCodePage(w http.ResponseWriter, r *http.Request) {

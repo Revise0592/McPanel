@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -324,11 +325,15 @@ func (m *Manager) FreePort(base int, bedrock bool) int {
 	return base
 }
 
-// Remove deletes a stopped server's runtime state and files.
+// Remove deletes a stopped server's runtime state and files. It refuses
+// while a job such as a backup or install is using the files.
 func (m *Manager) Remove(id string) error {
 	inst, err := m.Get(id)
 	if err != nil {
 		return err
+	}
+	if task := inst.Status().Task; task != "" {
+		return fmt.Errorf("wait until %s has finished", strings.ToLower(task))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()

@@ -66,6 +66,14 @@ func TestStatusPage(t *testing.T) {
 	if w := get("/s/" + token + "/heads/Notch"); w.Code != http.StatusNotFound {
 		t.Errorf("head of someone not online: status %d", w.Code)
 	}
+	// The placeholder face (used for Bedrock players) is served without
+	// signing in.
+	if w := get("/s/" + token + "/heads/-"); w.Code != http.StatusOK || w.Header().Get("Content-Type") != "image/png" {
+		t.Errorf("placeholder head: status %d, type %q", w.Code, w.Header().Get("Content-Type"))
+	}
+	if got := (publicView{Token: token, Type: store.TypeBedrock}).HeadURL("Steve"); !strings.HasPrefix(got, "/s/"+token+"/") {
+		t.Errorf("Bedrock head URL %q isn't under the status page", got)
+	}
 	// The panel's own pages still need signing in.
 	if w := get("/servers/" + sv.ID); w.Code != http.StatusSeeOther {
 		t.Errorf("server page without signing in: status %d", w.Code)

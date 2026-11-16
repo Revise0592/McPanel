@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -135,7 +136,7 @@ func Download(ctx context.Context, url, dst string, sum Checksum, logf Logf) err
 		return err
 	}
 	if h != nil && sum.Hex != "" {
-		if got := hex.EncodeToString(h.Sum(nil)); got != sum.Hex {
+		if got := hex.EncodeToString(h.Sum(nil)); !strings.EqualFold(got, sum.Hex) {
 			os.Remove(tmp)
 			return fmt.Errorf("checksum mismatch for %s", filepath.Base(dst))
 		}

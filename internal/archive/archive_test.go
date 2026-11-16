@@ -98,3 +98,43 @@ func TestTarGzRoundTrip(t *testing.T) {
 		t.Error("plugin jar missing")
 	}
 }
+
+// A chain of symlinks that each look safe on their own can still point
+// outside the target; files written through them must not escape.
+func TestExtractTarGzRejectsSymlinkChainEscape(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "evil.tar.gz")
+	f, _ := os.Create(src)
+	gz := gzip.NewWriter(f)
+	tw := tar.NewWriter(gz)
+	tw.WriteHeader(&tar.Header{Name: "c/b", Typeflag: tar.TypeSymlink, Linkname: ".."})
+	tw.WriteHeader(&tar.Header{Name: "x", Typeflag: tar.TypeSymlink, Linkname: "c/b/.."})
+	tw.WriteHeader(&tar.Header{Name: "x/escaped.txt", Typeflag: tar.TypeReg, Mode: 0o644, Size: 1})
+	tw.Write([]byte("x"))
+	tw.Close()
+	gz.Close()
+	f.Close()
+	ExtractTarGz(src, filepath.Join(dir, "out"), 0, nil)
+	if _, err := os.Stat(filepath.Join(dir, "escaped.txt")); err == nil {
+		t.Fatal("file escaped the target directory through a symlink chain")
+	}
+}
+
+// Files must not be written through a symlink already in the target that
+// points outside it.
+func TestExtractZipDoesNotFollowOutsideSymlink(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "out")
+	outside := filepath.Join(dir, "outside")
+	os.MkdirAll(out, 0o755)
+	os.MkdirAll(outside, 0o755)
+	if err := os.Symlink(outside, filepath.Join(out, "link")); err != nil {
+		t.Skip(err)
+	}
+	src := filepath.Join(dir, "a.zip")
+	writeZip(t, src, map[string]string{"link/escaped.txt": "x"})
+	ExtractZip(src, out, nil)
+	if _, err := os.Stat(filepath.Join(outside, "escaped.txt")); err == nil {
+		t.Fatal("file was written outside the target through a symlink")
+	}
+}

@@ -311,6 +311,9 @@ func runInstaller(ctx context.Context, dataDir, label, mc, v, url, args, jarPref
 			logf("%s installer is working (%d steps so far)", label, lines)
 		}
 	}
+	// The scanner gives up on a very long line; keep reading so the
+	// installer never blocks on a full pipe.
+	io.Copy(io.Discard, out)
 	if err := cmd.Wait(); err != nil {
 		for _, l := range tail {
 			logf("  %s", l)

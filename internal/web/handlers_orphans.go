@@ -3,7 +3,6 @@ package web
 import (
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/Revise0592/McPanel/internal/backup"
 )
@@ -58,20 +57,7 @@ func (a *App) downloadOrphan(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	p, err := backup.Path(a.Mgr.DataDir(), o.ID, r.PathValue("name"))
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	f, err := os.Open(p)
-	if err != nil {
-		http.NotFound(w, r)
-		return
-	}
-	defer f.Close()
-	info, _ := f.Stat()
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-%s"`, o.ID, r.PathValue("name")))
-	http.ServeContent(w, r, r.PathValue("name"), info.ModTime(), f)
+	a.serveBackup(w, r, o.ID)
 }
 
 func (a *App) deleteOrphan(w http.ResponseWriter, r *http.Request) {

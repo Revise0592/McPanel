@@ -248,7 +248,8 @@ func (a *App) importFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dst := filepath.Join(a.Mgr.DataDir(), "servers", sv.ID)
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err == nil {
+	err = os.MkdirAll(filepath.Dir(dst), 0o755)
+	if err == nil {
 		err = os.Rename(p.Root, dst)
 	}
 	if err != nil {
@@ -260,7 +261,7 @@ func (a *App) importFinish(w http.ResponseWriter, r *http.Request) {
 	os.RemoveAll(p.Base)
 
 	if _, err := os.Stat(filepath.Join(dst, "bedrock_server")); bedrock && err == nil {
-		if err := a.Mgr.AdoptBedrock(sv.ID, bedrockVersion(p, version)); err != nil {
+		if err := a.Mgr.AdoptBedrock(sv.ID, bedrockVersion(version)); err != nil {
 			setError(w, "Imported, but couldn't set it up: "+err.Error())
 			back(w, r, "/servers/"+sv.ID)
 			return
@@ -274,7 +275,7 @@ func (a *App) importFinish(w http.ResponseWriter, r *http.Request) {
 	back(w, r, "/servers/"+sv.ID)
 }
 
-func bedrockVersion(p *pendingImport, chosen string) string {
+func bedrockVersion(chosen string) string {
 	if chosen != "" && chosen != "latest" {
 		return chosen
 	}

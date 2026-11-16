@@ -82,7 +82,14 @@ func (a *App) downloadBackup(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	p, err := backup.Path(a.Mgr.DataDir(), sv.ID, r.PathValue("name"))
+	a.serveBackup(w, r, sv.ID)
+}
+
+// serveBackup sends the backup named in the URL from server id's backup
+// folder as a download.
+func (a *App) serveBackup(w http.ResponseWriter, r *http.Request, id string) {
+	name := r.PathValue("name")
+	p, err := backup.Path(a.Mgr.DataDir(), id, name)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -93,9 +100,13 @@ func (a *App) downloadBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-	info, _ := f.Stat()
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-%s"`, sv.ID, r.PathValue("name")))
-	http.ServeContent(w, r, r.PathValue("name"), info.ModTime(), f)
+	info, err := f.Stat()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-%s"`, id, name))
+	http.ServeContent(w, r, name, info.ModTime(), f)
 }
 
 func (a *App) restoreBackup(w http.ResponseWriter, r *http.Request) {
