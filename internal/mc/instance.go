@@ -235,9 +235,14 @@ func (i *Instance) parseLocked(line string) (ready bool) {
 	}
 	for _, re := range []*regexp.Regexp{javaJoin, javaLogin, bedJoin, proxyJoin} {
 		if m := re.FindStringSubmatch(line); m != nil {
+			_, was := i.players[m[1]]
 			i.joinedLocked(m[1], time.Now())
 			if i.m != nil && i.m.OnJoin != nil {
 				i.m.OnJoin(m[1])
+			}
+			// Java logs a join twice ("logged in", "joined the game").
+			if !was {
+				i.playerEventLocked(m[1], true)
 			}
 			i.rejected = slices.DeleteFunc(i.rejected, func(s string) bool { return s == m[1] })
 			i.lastPlayers = time.Now()
@@ -246,6 +251,9 @@ func (i *Instance) parseLocked(line string) (ready bool) {
 	}
 	for _, re := range []*regexp.Regexp{javaLeave, bedLeave, proxyLeave} {
 		if m := re.FindStringSubmatch(line); m != nil {
+			if _, was := i.players[m[1]]; was {
+				i.playerEventLocked(m[1], false)
+			}
 			i.leftLocked(m[1], time.Now())
 			i.lastPlayers = time.Now()
 			return ready
@@ -263,6 +271,14 @@ func (i *Instance) parseLocked(line string) (ready bool) {
 		}
 	}
 	return ready
+}
+
+// playerEventLocked hands a join or leave to the manager's OnPlayer hook.
+func (i *Instance) playerEventLocked(name string, joined bool) {
+	if i.m == nil || i.m.OnPlayer == nil {
+		return
+	}
+	go i.m.OnPlayer(i.ID, name, joined)
 }
 
 // ClearRejected forgets a turned-away player.

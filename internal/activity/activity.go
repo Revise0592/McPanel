@@ -40,7 +40,8 @@ const (
 	keep = 200
 	// An event matching the previous one within this window is counted
 	// on it instead of being added, so a failure retried every minute
-	// doesn't flood the list or the alerts.
+	// doesn't flood the list or the alerts. Power events are never folded:
+	// each start and stop is deliberate and alerted.
 	repeatWindow = time.Hour
 )
 
@@ -96,7 +97,7 @@ func (l *Log) Add(id string, e Event) {
 	l.mu.Lock()
 	evs := l.readLocked(id)
 	if n := len(evs); n > 0 {
-		if last := &evs[n-1]; last.Kind == e.Kind && last.Text == e.Text && e.Time.Sub(last.Time) < repeatWindow {
+		if last := &evs[n-1]; e.Kind != Power && last.Kind == e.Kind && last.Text == e.Text && e.Time.Sub(last.Time) < repeatWindow {
 			last.Repeats++
 			l.writeLocked(id, evs)
 			l.mu.Unlock()

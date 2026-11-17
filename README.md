@@ -34,7 +34,8 @@ configure and back up your servers from one page.
 - Scheduled restarts (with a warning to players) and commands; restart on
   crash, start with the panel
 - Activity history for each server, and alerts to Discord, Slack or any
-  webhook for crashes, failures, updates, starts and stops
+  webhook for crashes, failures, updates, starts and stops, and players
+  joining or leaving
 - Import a server or world from a zip
 - Two-factor sign-in
 - Link to the BlueMap or Dynmap web map, and a warning when the disk is

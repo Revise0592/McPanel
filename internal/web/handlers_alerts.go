@@ -27,6 +27,7 @@ func (a *App) saveAlerts(w http.ResponseWriter, r *http.Request) {
 		s.AlertFailures = r.FormValue("failures") == "on"
 		s.AlertUpdates = r.FormValue("updates") == "on"
 		s.AlertPower = r.FormValue("power") == "on"
+		s.AlertPlayers = r.FormValue("players") == "on"
 	})
 	if hook == "" {
 		setFlash(w, "Saved. Alerts are off.")
@@ -47,7 +48,9 @@ func (a *App) testAlert(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 	s := a.Store.Settings()
-	if err := notify.Send(ctx, hook, s.PanelName, s.PanelName, "test", "Test message. Alerts are working."); err != nil {
+	err := notify.Send(ctx, hook, s.PanelName, s.PanelName, "test", "Test message. Alerts are working.")
+	a.Notify.Note(err)
+	if err != nil {
 		setError(w, "The test didn't go through: "+err.Error())
 	} else {
 		setFlash(w, "Test message sent. Save to keep this address.")

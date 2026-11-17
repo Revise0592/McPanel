@@ -124,10 +124,17 @@
           <span><strong>Something fails</strong><span class="help" style="display:block">A backup, restore, install or update, or a server that won't start.</span></span></label>
         <label class="check"><input type="checkbox" name="updates" {{if or $fresh .Panel.AlertUpdates}}checked{{end}}>
           <span><strong>An update is available</strong><span class="help" style="display:block">For the server software or its plugins and mods. Each update is only mentioned once.</span></span></label>
-        <label class="check"><input type="checkbox" name="power" {{if .Panel.AlertPower}}checked{{end}}>
+        <label class="check"><input type="checkbox" name="power" {{if or $fresh .Panel.AlertPower}}checked{{end}}>
           <span><strong>A server starts, stops or restarts</strong><span class="help" style="display:block">"Started" is sent once players can join. A restart sends one message, not two.</span></span></label>
+        <label class="check"><input type="checkbox" name="players" {{if .Panel.AlertPlayers}}checked{{end}}>
+          <span><strong>A player joins or leaves</strong><span class="help" style="display:block">Can be chatty on a busy server.</span></span></label>
       </div>
       <p class="muted small">The same problem happening again within an hour is only sent once.</p>
+      {{with $d.Alerts}}{{if and .LastError (.Failed.After .Sent)}}
+      <p class="small" role="alert"><strong>The last alert didn't go through</strong> ({{ago .Failed}}): <span class="mono">{{.LastError}}</span></p>
+      {{else if not .Sent.IsZero}}
+      <p class="muted small">Last alert sent {{ago .Sent}}.</p>
+      {{end}}{{end}}
       <div class="form-actions">
         <button class="btn" formaction="/settings/alerts/test">Send a test</button>
         <button class="btn primary">Save</button>

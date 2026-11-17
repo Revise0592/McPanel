@@ -1,6 +1,7 @@
 package activity
 
 import (
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -51,5 +52,25 @@ func TestSeenAndKeep(t *testing.T) {
 	l.Remove("s")
 	if len(l.List("s", 0)) != 0 {
 		t.Error("Remove left events behind")
+	}
+}
+
+func TestPowerEventsAreNotFolded(t *testing.T) {
+	l := New(t.TempDir())
+	var mu sync.Mutex
+	n := 0
+	l.OnEvent(func(string, Event) { mu.Lock(); n++; mu.Unlock() })
+	l.Add("s", Event{Kind: Power, Text: "Restarted"})
+	l.Add("s", Event{Kind: Power, Text: "Restarted"})
+	l.Add("s", Event{Kind: Failed, Text: "Backup failed"})
+	l.Add("s", Event{Kind: Failed, Text: "Backup failed"})
+	if got := len(l.List("s", 0)); got != 3 {
+		t.Errorf("stored %d events, want 3", got)
+	}
+	time.Sleep(50 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if n != 3 {
+		t.Errorf("hook ran %d times, want 3", n)
 	}
 }

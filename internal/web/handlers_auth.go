@@ -10,6 +10,7 @@ import (
 
 	"github.com/Revise0592/McPanel/internal/auth"
 	"github.com/Revise0592/McPanel/internal/backup"
+	"github.com/Revise0592/McPanel/internal/notify"
 	"github.com/Revise0592/McPanel/internal/store"
 )
 
@@ -153,6 +154,7 @@ type panelSettingsData struct {
 	Section string
 	HTTPS   bool // this page was loaded over HTTPS
 	Accents []string
+	Alerts  notify.Status
 }
 
 // accentPresets are offered as one-click swatches next to the colour picker.
@@ -160,7 +162,7 @@ var accentPresets = []string{"#3b82f6", "#0d9488", "#16a34a", "#ca8a04", "#ea580
 
 func (a *App) panelSettingsPage(section string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		d := panelSettingsData{Section: section, HTTPS: viaHTTPS(r), Accents: accentPresets}
+		d := panelSettingsData{Section: section, HTTPS: viaHTTPS(r), Accents: accentPresets, Alerts: a.Notify.Status()}
 		a.render(w, r, "panel_settings", "Settings", "settings", d)
 	}
 }
