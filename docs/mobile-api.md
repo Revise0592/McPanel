@@ -36,7 +36,7 @@ sign-in cookie.
    {
      "token": "mcp_…",
      "device": {"id": "a251fa66fe61", "name": "Pixel 9", "createdAt": "…"},
-     "panel": {"name": "McPanel", "accent": "#3b82f6", "accentText": "#fff", "theme": "system",
+     "panel": {"name": "McPanel", "accent": "#2563eb", "accentText": "#fff", "theme": "system",
                "logo": "/api/v1/logo?v=1730620800000000000", "version": "1.4.0", "apiVersion": 1}
    }
    ```

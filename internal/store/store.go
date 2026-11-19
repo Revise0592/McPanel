@@ -228,7 +228,7 @@ func Open(dataDir string) (*Store, error) {
 		changed = true
 	}
 	if s.data.Settings.Accent == "" {
-		s.data.Settings.Accent = "#3b82f6"
+		s.data.Settings.Accent = "#2563eb"
 		changed = true
 	}
 	if s.data.Settings.Theme == "" {

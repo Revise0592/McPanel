@@ -11,7 +11,7 @@ data class Panel(
     val address: String,
     val name: String,
     val deviceId: String,
-    /** The panel's accent colour, such as "#3b82f6". */
+    /** The panel's accent colour, such as "#2563eb". */
     val accent: String = DEFAULT_ACCENT,
     /** Text colour on accent-filled buttons, as the web UI picks it. */
     val accentText: String = "#ffffff",
@@ -21,7 +21,7 @@ data class Panel(
     val logo: String = "",
 )
 
-const val DEFAULT_ACCENT = "#3b82f6"
+const val DEFAULT_ACCENT = "#2563eb"
 
 /** What /api/v1/me and /api/v1/pair say about the panel. */
 data class PanelInfo(

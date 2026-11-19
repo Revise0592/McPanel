@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"io/fs"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -90,15 +91,29 @@ func (a *App) removeLogo(w http.ResponseWriter, r *http.Request) {
 }
 
 // accentText picks white or near-black text for buttons filled with the
-// accent colour, so light accents like yellow stay readable.
+// accent colour: whichever has the higher WCAG contrast against it, so light
+// accents like yellow and mid blues both stay readable.
 func accentText(hex string) string {
 	var r, g, b int
 	if _, err := fmt.Sscanf(hex, "#%02x%02x%02x", &r, &g, &b); err != nil {
 		return "#fff"
 	}
-	// Perceived brightness (ITU-R BT.601 weights), 0 to 255.
-	if (299*r+587*g+114*b)/1000 > 128 {
+	l := luminance(r, g, b)
+	dark := luminance(0x16, 0x19, 0x1d)
+	if (l+0.05)/(dark+0.05) > 1.05/(l+0.05) {
 		return "#16191d"
 	}
 	return "#fff"
+}
+
+// luminance is the WCAG relative luminance of an sRGB colour, 0 to 1.
+func luminance(r, g, b int) float64 {
+	lin := func(c int) float64 {
+		v := float64(c) / 255
+		if v <= 0.04045 {
+			return v / 12.92
+		}
+		return math.Pow((v+0.055)/1.055, 2.4)
+	}
+	return 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b)
 }

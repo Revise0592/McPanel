@@ -158,7 +158,7 @@ type panelSettingsData struct {
 }
 
 // accentPresets are offered as one-click swatches next to the colour picker.
-var accentPresets = []string{"#3b82f6", "#0d9488", "#16a34a", "#ca8a04", "#ea580c", "#dc2626", "#db2777", "#7c3aed", "#475569"}
+var accentPresets = []string{"#2563eb", "#0d9488", "#16a34a", "#ca8a04", "#ea580c", "#dc2626", "#db2777", "#7c3aed", "#475569"}
 
 func (a *App) panelSettingsPage(section string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +216,7 @@ func (a *App) savePanelSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !hexColor.MatchString(accent) {
-		accent = "#3b82f6"
+		accent = "#2563eb"
 	}
 	switch theme {
 	case "system", "light", "dark":

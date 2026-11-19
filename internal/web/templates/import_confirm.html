@@ -9,10 +9,10 @@
     <li><span class="name muted">Worlds</span><span>{{if $d.Worlds}}{{range $i, $w := $d.Worlds}}{{if $i}}, {{end}}{{$w}}{{end}}{{else}}None yet{{end}}</span></li>
     {{if $d.Addons}}<li><span class="name muted">{{if isModded $d.Type}}Mods{{else}}Plugins{{end}}</span><span>{{$d.Addons}}</span></li>{{end}}
   </ul>
-  {{range $d.Notes}}<p class="muted small" style="margin-top:.75rem">{{.}}</p>{{end}}
+  {{range $d.Notes}}<p class="muted small note">{{.}}</p>{{end}}
 </div>
 
-<form class="card" method="post" action="/import/{{$d.Token}}" data-busy="Importing…" style="margin-top:1rem">
+<form class="card" method="post" action="/import/{{$d.Token}}" data-busy="Importing…">
   <h2>Check and import</h2>
   {{if $d.PortNote}}<div class="flash">{{$d.PortNote}}</div>{{end}}
   <div class="field">
