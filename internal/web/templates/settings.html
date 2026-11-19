@@ -50,7 +50,7 @@
       {{if isJava $v.Type}}
       <div class="field">
         <label class="check"><input type="checkbox" name="tunedFlags" {{if $v.TunedFlags}}checked{{end}}>
-          <span><strong>Use recommended Java settings</strong><span class="help" style="display:block">Garbage collector settings (Aikar's flags) that suit any Minecraft server</span></span></label>
+          <span><strong>Use recommended Java settings</strong><span class="help">Garbage collector settings (Aikar's flags) that suit any Minecraft server</span></span></label>
       </div>
       <div class="field">
         <label for="javaArgs">Extra Java options</label>
@@ -64,7 +64,7 @@
       </div>
       <div class="field">
         <label for="sleepAfter">Sleep when nobody is on</label>
-        <select id="sleepAfter" name="sleepAfter" style="max-width:16rem">
+        <select id="sleepAfter" name="sleepAfter" class="narrow">
           <option value="0">Never</option>
           {{range $v.SleepChoices}}<option value="{{.}}" {{if eq . $v.SleepAfterMins}}selected{{end}}>After {{if lt . 60}}{{.}} minutes{{else if eq . 60}}1 hour{{else}}{{div . 60}} hours{{end}}</option>{{end}}
         </select>
@@ -72,7 +72,7 @@
       </div>
       <div class="field">
         <label class="check"><input type="checkbox" name="restartOnCrash" {{if $v.RestartOnCrash}}checked{{end}}>
-          <span><strong>Restart if it crashes</strong><span class="help" style="display:block">Gives up after 3 crashes in 10 minutes.</span></span></label>
+          <span><strong>Restart if it crashes</strong><span class="help">Gives up after 3 crashes in 10 minutes.</span></span></label>
       </div>
       <div class="form-actions"><button class="btn primary">Save</button></div>
     </form>
@@ -102,7 +102,7 @@
         <a class="mono" href="/s/{{$v.StatusToken}}" target="_blank" rel="noopener">{{$v.StatusURL}}</a>
         <button class="btn small ghost" type="button" data-copy="{{$v.StatusURL}}">Copy link</button>
       </div>
-      <form class="row" method="post" action="{{$base}}/status-page" style="margin-top:.75rem">
+      <form class="row gap-top" method="post" action="{{$base}}/status-page">
         <button class="btn small" name="action" value="new" data-confirm="Make a new link? The old link stops working.">New link</button>
         <button class="btn small ghost danger" name="action" value="off">Turn off</button>
       </form>
@@ -211,7 +211,7 @@
       {{range $v.Fields}}{{if eq .Kind "bool"}}
         <div class="field">
           <label class="check"><input type="checkbox" name="{{.Key}}" {{if .Checked}}checked{{end}}>
-            <span><strong>{{.Label}}</strong>{{if .Help}}<span class="help" style="display:block">{{.Help}}</span>{{end}}</span></label>
+            <span><strong>{{.Label}}</strong>{{if .Help}}<span class="help">{{.Help}}</span>{{end}}</span></label>
         </div>
       {{end}}{{end}}
       </div>
@@ -237,7 +237,7 @@
       <p class="desc">{{typeLabel $v.Type}} is up to date{{if eq $v.Type "vanilla"}} for {{$v.Version}}{{end}}.</p>
       {{end}}
       {{if $v.AddonUpdates}}<p class="desc"><a href="/servers/{{$v.ID}}/addons">{{len $v.AddonUpdates}} {{$v.AddonNoun}} update{{if gt (len $v.AddonUpdates) 1}}s{{end}} available.</a></p>{{end}}
-      <form class="row" method="post" action="/servers/{{$v.ID}}/updates/check" style="margin-top:.75rem">
+      <form class="row gap-top" method="post" action="/servers/{{$v.ID}}/updates/check">
         <button class="btn small ghost">Check now</button>
         {{if not $v.UpdateCheck.Checked.IsZero}}<span class="muted small">Last checked {{ago $v.UpdateCheck.Checked}}</span>{{end}}
       </form>
@@ -248,12 +248,12 @@
       <p class="desc">Currently {{typeLabel $v.Type}} {{$v.Version}}{{if $v.Build}} ({{if isModded $v.Type}}loader{{else}}build{{end}} {{$v.Build}}){{end}}. Worlds and settings are kept.</p>
       {{with $v.Modpack}}<p class="help warn">This server was set up from {{.Name}} {{.Version}}. Its mods are for Minecraft {{$v.Version}}, so changing version or loader will most likely stop it from starting.</p>{{end}}
       <div class="row">
-        <select name="version" style="max-width:16rem" aria-label="Version">
+        <select name="version" class="narrow" aria-label="Version">
           {{range $v.Versions}}<option value="{{.}}" {{if eq . $v.Version}}selected{{end}}>{{if eq . "latest"}}Latest release{{else}}{{.}}{{end}}</option>{{end}}
         </select>
         <button class="btn">{{if eq $v.Type "bedrock"}}Update{{else}}Install{{end}}</button>
       </div>
-      <p class="muted small" style="margin-top:.75rem">Picking the current version re-downloads it{{if and $v.Build (not (isModded $v.Type))}} with the newest {{typeLabel $v.Type}} build{{end}}{{if isModded $v.Type}} with the newest loader{{end}}.{{if isModded $v.Type}} Check that your mods have releases for a new Minecraft version before changing to it.{{end}}</p>
+      <p class="muted small note">Picking the current version re-downloads it{{if and $v.Build (not (isModded $v.Type))}} with the newest {{typeLabel $v.Type}} build{{end}}{{if isModded $v.Type}} with the newest loader{{end}}.{{if isModded $v.Type}} Check that your mods have releases for a new Minecraft version before changing to it.{{end}}</p>
     </form>
 
     {{if eq $v.Type "bedrock"}}
@@ -280,7 +280,7 @@
       <h2>Delete server</h2>
       <p class="desc">Removes the server and its files. Its backups are kept, and you can delete them from the Servers page later. Type <strong>{{$v.Name}}</strong> to confirm.</p>
       <div class="row">
-        <input type="text" name="confirm" style="max-width:16rem" aria-label="Server name" autocomplete="off">
+        <input type="text" name="confirm" class="narrow" aria-label="Server name" autocomplete="off">
         <button class="btn danger solid">Delete</button>
       </div>
     </form>

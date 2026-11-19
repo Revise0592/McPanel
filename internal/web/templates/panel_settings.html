@@ -121,13 +121,13 @@
         <label class="check"><input type="checkbox" name="crashes" {{if or $fresh .Panel.AlertCrashes}}checked{{end}}>
           <span><strong>A server crashes</strong></span></label>
         <label class="check"><input type="checkbox" name="failures" {{if or $fresh .Panel.AlertFailures}}checked{{end}}>
-          <span><strong>Something fails</strong><span class="help" style="display:block">A backup, restore, install or update, or a server that won't start.</span></span></label>
+          <span><strong>Something fails</strong><span class="help">A backup, restore, install or update, or a server that won't start.</span></span></label>
         <label class="check"><input type="checkbox" name="updates" {{if or $fresh .Panel.AlertUpdates}}checked{{end}}>
-          <span><strong>An update is available</strong><span class="help" style="display:block">For the server software or its plugins and mods. Each update is only mentioned once.</span></span></label>
+          <span><strong>An update is available</strong><span class="help">For the server software or its plugins and mods. Each update is only mentioned once.</span></span></label>
         <label class="check"><input type="checkbox" name="power" {{if or $fresh .Panel.AlertPower}}checked{{end}}>
-          <span><strong>A server starts, stops or restarts</strong><span class="help" style="display:block">"Started" is sent once players can join. A restart sends one message, not two.</span></span></label>
+          <span><strong>A server starts, stops or restarts</strong><span class="help">"Started" is sent once players can join. A restart sends one message, not two.</span></span></label>
         <label class="check"><input type="checkbox" name="players" {{if .Panel.AlertPlayers}}checked{{end}}>
-          <span><strong>A player joins or leaves</strong><span class="help" style="display:block">Can be chatty on a busy server.</span></span></label>
+          <span><strong>A player joins or leaves</strong><span class="help">Can be chatty on a busy server.</span></span></label>
       </div>
       <p class="muted small">The same problem happening again within an hour is only sent once.</p>
       {{with $d.Alerts}}{{if and .LastError (.Failed.After .Sent)}}
@@ -216,7 +216,7 @@
       <h2>Connection</h2>
       <div class="field">
         <label class="check"><input type="checkbox" name="behindHTTPSProxy" {{if .Panel.BehindHTTPSProxy}}checked{{end}}>
-          <span><strong>Behind an HTTPS proxy</strong><span class="help" style="display:block">Turn on if you reach McPanel through an HTTPS address from a reverse proxy such as Pangolin, Caddy or Nginx. Sign-in will then only work over HTTPS. If you get locked out, run <code>mcpanel reset-password</code> to turn this off.</span></span></label>
+          <span><strong>Behind an HTTPS proxy</strong><span class="help">Turn on if you reach McPanel through an HTTPS address from a reverse proxy such as Pangolin, Caddy or Nginx. Sign-in will then only work over HTTPS. If you get locked out, run <code>mcpanel reset-password</code> to turn this off.</span></span></label>
       </div>
       {{if not $d.HTTPS}}<p class="muted small">You're on plain HTTP right now. Open McPanel through your HTTPS address to turn this on.</p>{{end}}
       <div class="form-actions"><button class="btn">Save</button></div>
